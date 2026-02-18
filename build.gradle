@@ -1,0 +1,40 @@
+plugins {
+    id "dssvue.deps-conventions"
+    id "dssvue.java-conventions"
+    id "dssvue.publishing-conventions"
+}
+
+dependencies {
+}
+
+jar {
+    manifest {
+        attributes(
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+task publishJavaOnly(dependsOn: publish)
+
+tasks.named('test') {
+    useJUnitPlatform {
+        excludeTags 'integration'
+    }
+}
+
+tasks.register('integrationTest', Test) {
+    testClassesDirs = testing.suites.test.targets.first().testTask.get().testClassesDirs
+    classpath = testing.suites.test.targets.first().testTask.get().classpath
+    useJUnitPlatform {
+        includeTags 'integration'
+    }
+}
