@@ -1,5 +1,6 @@
 package hec.usgs.waterdata;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -15,8 +16,8 @@ public class TimeSeriesMetadata {
     public String hydrologicUnitCode;
     public String stateName;
     public String lastModified;
-    public String begin;
-    public String end;
+    public LocalDate begin;
+    public LocalDate end;
     public String beginUtc;
     public String endUtc;
     public String computationPeriodIdentifier;
@@ -30,7 +31,7 @@ public class TimeSeriesMetadata {
     public String parentTimeSeriesId;
 
     /**
-     * Filters to most common Daily time series 
+     * Filters to most common Daily time series
      */
     public static List<TimeSeriesMetadata> filterDaily(List<TimeSeriesMetadata> metadata) {
         return metadata.stream()
@@ -38,6 +39,21 @@ public class TimeSeriesMetadata {
                 .filter(ts -> ts.statisticId != null && !ts.statisticId.isEmpty())
                 .filter(ts -> "Mean".equals(ts.computationIdentifier) || "Instantaneous".equals(ts.computationIdentifier))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Filters to most common Daily time series within a date range
+     */
+    public static List<TimeSeriesMetadata> filterDaily(List<TimeSeriesMetadata> metadata, LocalDate start, LocalDate end) {
+        return filterDaily(metadata).stream()
+                .filter(ts -> ts.begin != null && ts.end != null
+                        && ts.begin.compareTo(end) <= 0 && ts.end.compareTo(start) >= 0)
+                .collect(Collectors.toList());
+    }
+
+    static LocalDate parseDate(String s) {
+        if (s == null || s.isEmpty()) return null;
+        return LocalDate.parse(s.substring(0, 10));
     }
 
     static TimeSeriesMetadata fromRow(DataTable table, int row) {
@@ -52,8 +68,8 @@ public class TimeSeriesMetadata {
         ts.hydrologicUnitCode = table.get(row, "hydrologic_unit_code");
         ts.stateName = table.get(row, "state_name");
         ts.lastModified = table.get(row, "last_modified");
-        ts.begin = table.get(row, "begin");
-        ts.end = table.get(row, "end");
+        ts.begin = parseDate(table.get(row, "begin"));
+        ts.end = parseDate(table.get(row, "end"));
         ts.beginUtc = table.get(row, "begin_utc");
         ts.endUtc = table.get(row, "end_utc");
         ts.computationPeriodIdentifier = table.get(row, "computation_period_identifier");

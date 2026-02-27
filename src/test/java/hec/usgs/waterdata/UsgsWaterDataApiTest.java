@@ -2,6 +2,8 @@ package hec.usgs.waterdata;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -20,10 +22,7 @@ class UsgsWaterDataApiTest {
         assertTrue(locations.size() > 100, "Expected many California stream locations");
         assertEquals("USGS", locations.get(0).agencyCode);
 
-        MonitoringLocation russian = locations.stream()
-                .filter(loc -> "11461000".equals(loc.monitoringLocationNumber))
-                .findFirst()
-                .orElse(null);
+        MonitoringLocation russian = MonitoringLocation.findByNumber(locations, "11461000");
         assertNotNull(russian, "Expected to find monitoring_location_number 11461000");
         assertEquals("RUSSIAN R NR UKIAH CA", russian.monitoringLocationName);
     }
@@ -42,68 +41,74 @@ class UsgsWaterDataApiTest {
      * Tests scenario of user looking for Daily data for Idaho streams.
      * <ol>
      *   <li>query for monitoring locations in Idaho</li>
-     *   <li>select specific sites of interest</li>
+     *   <li>select specific site of interest</li>
      *   <li>query for time-series metadata for those sites (select Flow and Gage Height parameters)</li>
      *   <li>download time-series data for a specific parameter and statistic</li>
      * </ol>
      *
+     * ./gradlew :usgs-water-api:integrationTest --tests "hec.usgs.waterdata.UsgsWaterDataApiTest.dailyData_userScenario" -PusgsDebug=true
+     * 
      * @throws Exception
      */
-    @Test
+    @ParameterizedTest(name = "{2} ({0})")
+    @CsvSource({
+            "13037500, USGS-13037500, Snake River at Heise, 366",
+            "13186000, USGS-13186000, Boise River near Featherville, 366"
+    })
     @Tag("integration")
-    void dailyData_userScenario() throws Exception {
-        // ./gradlew :usgs-water-api:integrationTest --tests "hec.usgs.waterdata.UsgsWaterDataApiTest.dailyData_userScenario"
+    void dailyData_userScenario(String locationNumber, String expectedId, String displayName,
+                                int expectedDailyValues2020) throws Exception {
         String idaho = "16";
+        var t1= LocalDate.of(2020, 1, 1);
+        var t2 = LocalDate.of(2020, 12, 31);
+
         List<MonitoringLocation> locations = UsgsWaterDataApi.getLocations(idaho, "ST");
         assertTrue(locations.size() > 100, "Expected many Idaho stream locations");
 
-        // Snake River at Heise (USGS-13037500)
-        MonitoringLocation snakeRiver = locations.stream()
-                .filter(loc -> "13037500".equals(loc.monitoringLocationNumber))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(snakeRiver, "Expected to find Snake River at Heise (13037500)");
-        assertEquals("USGS-13037500", snakeRiver.id);
-        logger.info("Found: " + snakeRiver.monitoringLocationName);
+        MonitoringLocation location = MonitoringLocation.findByNumber(locations, locationNumber);
+        assertNotNull(location, "Expected to find " + displayName + " (" + locationNumber + ")");
+        assertEquals(expectedId, location.id);
+        logger.info("Found: " + location.monitoringLocationName);
 
-        MonitoringLocation boiseRiver = locations.stream()
-                .filter(loc -> "13186000".equals(loc.monitoringLocationNumber))
-                .findFirst()
-                .orElse(null);
-        assertNotNull(boiseRiver, "Expected to find Boise River near Featherville (13186000)");
-        assertEquals("USGS-13186000", boiseRiver.id);
-        logger.info("Found: " + boiseRiver.monitoringLocationName);
-
-        // query metadata for each site
-        List<TimeSeriesMetadata> snakeMetadata = UsgsWaterDataApi.getTimeSeriesMetadata(snakeRiver.id);
-        assertFalse(snakeMetadata.isEmpty(), "Expected time-series metadata for Snake River at Heise");
-        logger.info("Snake River metadata count: " + snakeMetadata.size());
-        for (TimeSeriesMetadata ts : snakeMetadata) {
+        List<TimeSeriesMetadata> metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location.id);
+        assertFalse(metadata.isEmpty(), "Expected time-series metadata for " + displayName);
+        logger.info(displayName + " metadata count: " + metadata.size());
+        for (TimeSeriesMetadata ts : metadata) {
             logger.info("  " + ts.parameterCode + " " + ts.parameterName
                     + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
         }
 
-        List<TimeSeriesMetadata> boiseMetadata = UsgsWaterDataApi.getTimeSeriesMetadata(boiseRiver.id);
-        assertFalse(boiseMetadata.isEmpty(), "Expected time-series metadata for Boise River near Featherville");
-        
-        logger.info("Boise River metadata count: " + boiseMetadata.size());
-        for (TimeSeriesMetadata ts : boiseMetadata) {
+        metadata = TimeSeriesMetadata.filterDaily(metadata, t1, t2);
+        logger.info("Filtered to " + metadata.size() + " Daily time-series");
+        for (TimeSeriesMetadata ts : metadata) {
             logger.info("  " + ts.parameterCode + " " + ts.parameterName
                     + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
         }
-        boiseMetadata = TimeSeriesMetadata.filterDaily(boiseMetadata);
-        logger.info("Filtered to " + boiseMetadata.size() + " Daily time-series with statistic");
-        for (TimeSeriesMetadata ts : boiseMetadata) {
-            logger.info("  " + ts.parameterCode + " " + ts.parameterName
-                    + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
-        }
-        assertEquals(1,boiseMetadata.size());
-        for (TimeSeriesMetadata ts : boiseMetadata) {
-            List<DailyValue> dailyValues = UsgsWaterDataApi.getDailyTimeSeries(boiseRiver.id, ts.parameterCode, ts.statisticId, LocalDate.of(2020, 1, 1), LocalDate.of(2020, 12, 31));
+        assertTrue(metadata.size()>0, "Expected some Daily time-series metadata for " + displayName);
+
+        for (TimeSeriesMetadata ts : metadata) {
+            List<DailyValue> dailyValues = UsgsWaterDataApi.getDailyTimeSeries(location.id, ts.parameterCode, ts.statisticId, t1, t2);
             assertFalse(dailyValues.isEmpty(), "Expected daily time-series data for " + ts.parameterName);
             logger.info("  " + ts.parameterName + " has " + dailyValues.size() + " daily values in 2020");
-            assertEquals(366, dailyValues.size(), "Expected 366 daily values for 2020 (leap year)");
+            assertEquals(expectedDailyValues2020, dailyValues.size(), "Expected " + expectedDailyValues2020 + " daily values for 2020 (leap year)");
         }
-        
+    }
+
+    @Test
+    @Tag("integration")
+    void dailyData_ShellpotCreek() throws Exception {
+        List<TimeSeriesMetadata> metadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-01477800");
+        metadata = TimeSeriesMetadata.filterDaily(metadata);
+        for (TimeSeriesMetadata ts : metadata) {
+            logger.info("  " + ts.parameterCode + " " + ts.parameterName
+                    + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
+        }
+        var shellpot= metadata.get(0);
+        var ts = UsgsWaterDataApi.getDailyTimeSeries(shellpot.monitoringLocationId, shellpot.parameterCode, shellpot.statisticId,
+             LocalDate.of(2025, 2, 26),
+              LocalDate.of(2026, 2, 26));
+        for (DailyValue dv : ts) {
+            logger.info("  " + dv.date + " = " + dv.value);
+        }
     }
 }

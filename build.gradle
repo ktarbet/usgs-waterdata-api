@@ -34,6 +34,7 @@ tasks.named('test') {
 tasks.register('integrationTest', Test) {
     testClassesDirs = testing.suites.test.targets.first().testTask.get().testClassesDirs
     classpath = testing.suites.test.targets.first().testTask.get().classpath
+    systemProperty 'usgs.debug', project.findProperty('usgsDebug') ?: 'false'
     useJUnitPlatform {
         includeTags 'integration'
     }

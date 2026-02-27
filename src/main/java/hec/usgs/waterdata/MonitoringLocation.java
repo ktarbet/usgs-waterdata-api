@@ -1,6 +1,15 @@
 package hec.usgs.waterdata;
 
+import java.util.List;
+
 public class MonitoringLocation {
+
+    static MonitoringLocation findByNumber(List<MonitoringLocation> locations, String locationNumber) {
+        return locations.stream()
+                .filter(loc -> locationNumber.equals(loc.monitoringLocationNumber))
+                .findFirst()
+                .orElse(null);
+    }
 
     public String x;
     public String y;
