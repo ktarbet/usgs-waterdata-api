@@ -32,6 +32,17 @@ Files are named from the response `Content-Disposition` header. Duplicate filena
 # TODO
 
  - Allow user to specify what paramters they want such as 'Flow' (USGS python pdf may be helpful.)
+ Station Name=HYDER AK
+Stream Name=SALMON R
+Station ID=15008000
+Version Name=USGS
+Latitude=56.0259971857126
+Longitude=-130.06687006967235
+Elevation=286
+Coord Datum=NAD27
+PARAMETERS=ALL
+PARAMETERS=Flow,Stage  (new feature)
+
  - put Site-types in config somewhere:
  - Internally use MonitoringLocation instead of legacy UsgsStation
  - get period of record from api (start with Daily)
