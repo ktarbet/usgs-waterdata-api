@@ -51,6 +51,51 @@ public class TimeSeriesMetadata {
                 .collect(Collectors.toList());
     }
 
+    public static class DateRange {
+        public final LocalDate begin;
+        public final LocalDate end;
+
+        DateRange(LocalDate begin, LocalDate end) {
+            this.begin = begin;
+            this.end = end;
+        }
+
+        public String getBeginAsString() {
+            return begin != null ? begin.toString() : "";
+        }
+
+        public String getEndAsString() {
+            return end != null ? end.toString() : "";
+        }
+    }
+
+    /**
+     * Returns the earliest begin and latest end for entries matching
+     * the given computationPeriodIdentifier, or null if none match.
+     */
+    public static DateRange dateRange(List<TimeSeriesMetadata> metadata, String computationPeriodIdentifier) {
+        return dateRange(metadata.stream()
+                .filter(ts -> computationPeriodIdentifier.equals(ts.computationPeriodIdentifier))
+                .collect(Collectors.toList()));
+    }
+
+    /**
+     * Returns the earliest begin and latest end across the given metadata,
+     * or null if no entries have a non-null begin.
+     */
+    public static DateRange dateRange(List<TimeSeriesMetadata> metadata) {
+        LocalDate minBegin = null;
+        LocalDate maxEnd = null;
+        for (TimeSeriesMetadata ts : metadata) {
+            if (ts.begin == null) continue;
+            if (minBegin == null || ts.begin.isBefore(minBegin))
+                minBegin = ts.begin;
+            if (ts.end != null && (maxEnd == null || ts.end.isAfter(maxEnd)))
+                maxEnd = ts.end;
+        }
+        return minBegin != null ? new DateRange(minBegin, maxEnd) : null;
+    }
+
     static LocalDate parseDate(String s) {
         if (s == null || s.isEmpty()) return null;
         return LocalDate.parse(s.substring(0, 10));

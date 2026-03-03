@@ -47,7 +47,7 @@ PARAMETERS=Flow,Stage  (new feature)
  - Internally use MonitoringLocation instead of legacy UsgsStation
  - get period of record from api (start with Daily)
  - get more site types.
- - when reading regular time seires , check dates for ordering ()
+ - when reading regular time series , check dates for ordering ()
 
 gs-w_waterdata_support@usgs.gov
 

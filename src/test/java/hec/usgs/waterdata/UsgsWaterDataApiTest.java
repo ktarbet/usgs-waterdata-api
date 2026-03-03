@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.logging.Logger;
@@ -107,8 +108,26 @@ class UsgsWaterDataApiTest {
         var ts = UsgsWaterDataApi.getDailyTimeSeries(shellpot.monitoringLocationId, shellpot.parameterCode, shellpot.statisticId,
              LocalDate.of(2025, 2, 26),
               LocalDate.of(2026, 2, 26));
-        for (DailyValue dv : ts) {
+        for (int i = 0; i < Math.min(4, ts.size()); i++) {
+            DailyValue dv = ts.get(i);
             logger.info("  " + dv.date + " = " + dv.value);
         }
     }
+
+    @Test
+    @Tag("integration")
+    void getMetadata_many_locations() throws Exception {
+        CsvFile csv = new CsvFile(Path.of("src/test/resources/monitoring-locations.csv"));
+        int count = csv.getRowCount();
+        String[] ids = new String[count];
+        for (int i = 0; i < count; i++) {
+            ids[i] = csv.get(i, "id");
+        }
+
+        var metadataMap = UsgsWaterDataApi.getTimeSeriesMetadata(ids);
+        assertFalse(metadataMap.isEmpty(), "Expected metadata for at least some locations");
+        assertTrue(metadataMap.size() > 1000, "Expected metadata for most of the " + count + " locations");
+        logger.info("Queried " + count + " locations, got metadata for " + metadataMap.size());
+    }
+
 }
