@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import java.util.List;
 

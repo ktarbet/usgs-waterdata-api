@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -7,6 +7,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -55,7 +56,7 @@ class DailyValueTest {
         return Arrays.stream(spec.split(","))
                 .map(String::trim)
                 .map(DailyValueTest::parseValue)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private static DailyValue parseValue(String item) {

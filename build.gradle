@@ -1,10 +1,33 @@
 plugins {
-    id "dssvue.deps-conventions"
-    id "dssvue.java-conventions"
-    id "dssvue.publishing-conventions"
+    id 'java-library'
+    id 'com.vanniktech.maven.publish' version '0.36.0'
+}
+
+group = 'io.github.ktarbet'
+version = findProperty('projVersion') ?: 'SNAPSHOT-0099'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 11
+}
+
+repositories {
+    mavenCentral()
 }
 
 dependencies {
+    testImplementation platform('org.junit:junit-bom:5.11.4')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+javadoc {
+    options.addStringOption('Xdoclint:none', '-quiet')
 }
 
 jar {
@@ -14,16 +37,6 @@ jar {
         )
     }
 }
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            from components.java
-        }
-    }
-}
-
-task publishJavaOnly(dependsOn: publish)
 
 tasks.named('test') {
     useJUnitPlatform {
@@ -37,5 +50,36 @@ tasks.register('integrationTest', Test) {
     systemProperty 'usgs.debug', project.findProperty('usgsDebug') ?: 'false'
     useJUnitPlatform {
         includeTags 'integration'
+    }
+}
+
+mavenPublishing {
+    publishToMavenCentral(true)
+    signAllPublications()
+
+    coordinates('io.github.ktarbet', 'usgs-waterdata-api', version.toString())
+
+    pom {
+        name = 'USGS Water Data API Client'
+        description = 'Zero dependency Java client for the USGS Water Data OGC API'
+        url = 'https://github.com/ktarbet/usgs-waterdata-api'
+
+        licenses {
+            license {
+                name = 'MIT License'
+                url = 'https://opensource.org/licenses/MIT'
+            }
+        }
+        developers {
+            developer {
+                id = 'ktarbet'
+                name = 'Karl Tarbet'
+            }
+        }
+        scm {
+            connection = 'scm:git:git://github.com/ktarbet/usgs-waterdata-api.git'
+            developerConnection = 'scm:git:ssh://git@github.com/ktarbet/usgs-waterdata-api.git'
+            url = 'https://github.com/ktarbet/usgs-waterdata-api'
+        }
     }
 }

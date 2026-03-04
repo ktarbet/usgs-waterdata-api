@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -47,7 +47,7 @@ class UsgsWaterDataApiTest {
      *   <li>download time-series data for a specific parameter and statistic</li>
      * </ol>
      *
-     * ./gradlew :usgs-water-api:integrationTest --tests "hec.usgs.waterdata.UsgsWaterDataApiTest.dailyData_userScenario" -PusgsDebug=true
+     * ./gradlew :usgs-water-api:integrationTest --tests "ktarbet.usgs.waterdata.UsgsWaterDataApiTest.dailyData_userScenario" -PusgsDebug=true
      * 
      * @throws Exception
      */

@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeAll;

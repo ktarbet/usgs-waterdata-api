@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  * without an API key. With an API key: 1,000 requests per hour and 50,000
  * responses per request. Register for a key at
  * <a href="https://api.waterdata.usgs.gov/signup/">https://api.waterdata.usgs.gov/signup/</a>
- * and set the {@value #ENV_USGS_WATER_API_KEY} environment variable.
+ * and set the {@code USGS_WATER_API_KEY} environment variable.
  */
 public class UsgsWaterDataApi {
 
