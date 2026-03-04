@@ -1,4 +1,4 @@
-package hec.usgs.waterdata;
+package ktarbet.usgs.waterdata;
 
 import java.time.LocalDate;
 import java.util.List;
