@@ -26,10 +26,15 @@ public class UsgsWaterDataApi {
     private static final Logger logger = Logger.getLogger(UsgsWaterDataApi.class.getName());
     public static final double UNDEFINED_DOUBLE = -Float.MAX_VALUE;
 
-    static final String LOCATIONS_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
-    static final String DAILY_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&monitoring_location_id=%s&parameter_code=%s&statistic_id=%s&time=%s/%s";
-    static final String TIME_SERIES_METADATA_URL ="https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id&skipGeometry=false&offset=0&monitoring_location_id=%s";
-    static final String TIME_SERIES_METADATA_POST_URL ="https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id&skipGeometry=false&offset=0";
+    
+    static final String ROOT_URL                      = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/";
+    static final String LOCATIONS_URL                 = ROOT_URL + "monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
+    static final String TIME_SERIES_QUERY             = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&monitoring_location_id=%s&parameter_code=%s&statistic_id=%s&time=%s/%s";
+    static final String DAILY_URL                     = ROOT_URL + "daily/" + TIME_SERIES_QUERY;
+    static final String CONTINUOUS_URL                = ROOT_URL + "continuous/" + TIME_SERIES_QUERY;
+    static final String TIME_SERIES_METADATA_PROPERTIES = "id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id";
+    static final String TIME_SERIES_METADATA_URL      = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0&monitoring_location_id=%s";
+    static final String TIME_SERIES_METADATA_POST_URL = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0";
     private UsgsWaterDataApi() {
         // Prevent instantiation
     }
@@ -61,7 +66,7 @@ public class UsgsWaterDataApi {
         return WebUtility.postPage(url, "application/query-cql-json", json, cacheKey);
     }
 
-    static String buildCqlInFilter(String propertyName, String[] items) {
+    private static String buildCqlInFilter(String propertyName, String[] items) {
         StringBuilder sb = new StringBuilder();
         sb.append("{\"op\":\"in\",\"args\":[{\"property\":\"")
           .append(propertyName).append("\"},[");
