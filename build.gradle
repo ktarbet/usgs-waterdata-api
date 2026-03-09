@@ -1,6 +1,8 @@
 plugins {
     id 'java-library'
-    id 'com.vanniktech.maven.publish' version '0.36.0'
+    id 'maven-publish'
+    id 'signing'
+    id 'io.github.opendcs.maven.maven-central-upload' version '0.1.2'
 }
 
 group = 'io.github.ktarbet'
@@ -53,12 +55,21 @@ tasks.register('integrationTest', Test) {
     }
 }
 
-mavenPublishing {
-    publishToMavenCentral(true)
-    signAllPublications()
 
-    coordinates('io.github.ktarbet', 'usgs-waterdata-api', version.toString())
+ext.shouldSign = (project.findProperty("sign") ?: "false") == "true"
 
+plugins.apply('io.github.opendcs.maven.maven-central-upload')
+
+
+if (shouldSign) {
+    signing {
+        def signingKey = project.getProperty("signingKey").trim().replace("\n","")
+        def signingPassword = project.getProperty("signingKeyPassword")
+        useInMemoryPgpKeys(signingKey, signingPassword)
+    }
+}
+
+publishing.publications.withType(MavenPublication) {
     pom {
         name = 'USGS Water Data API Client'
         description = 'Zero dependency Java client for the USGS Water Data API'
@@ -81,5 +92,25 @@ mavenPublishing {
             developerConnection = 'scm:git:ssh://git@github.com/ktarbet/usgs-waterdata-api.git'
             url = 'https://github.com/ktarbet/usgs-waterdata-api'
         }
+    }
+}
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+    repositories {
+        maven {
+            name = "mavenCentralApi"
+            url = "https://central.sonatype.com"
+            def user = project.findProperty("centralApiUsername")
+            def passwd = project.findProperty("centralApiPassword")
+            credentials {
+                username = user
+                password = passwd
+            }
+        }
+        mavenLocal()
     }
 }

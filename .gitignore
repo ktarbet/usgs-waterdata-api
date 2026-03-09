@@ -12,3 +12,5 @@ build/
 out/
 .DS_Store
 bin/**
+.gradle-user-home/**
+go.bat
