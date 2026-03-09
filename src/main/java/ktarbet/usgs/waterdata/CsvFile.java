@@ -8,7 +8,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-public class CsvFile extends DataTable {
+class CsvFile extends DataTable {
 
     public CsvFile(String filename) throws IOException {
         this(Path.of(filename));

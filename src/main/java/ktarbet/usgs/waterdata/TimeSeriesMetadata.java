@@ -128,4 +128,8 @@ public class TimeSeriesMetadata {
         ts.parentTimeSeriesId = table.get(row, "parent_time_series_id");
         return ts;
     }
+
+    public String toString() {
+        return parameterCode + " " + parameterName + " statisticId=" + statisticId + " [" + unitOfMeasure + "] " + begin + " to " + end;
+    }
 }

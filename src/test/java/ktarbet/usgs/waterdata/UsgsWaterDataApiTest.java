@@ -5,8 +5,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import ktarbet.Utility;
+
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 
@@ -19,7 +22,7 @@ class UsgsWaterDataApiTest {
     @Test
     @Tag("integration")
     void getLocations_californiaStreams() throws Exception {
-        List<MonitoringLocation> locations = UsgsWaterDataApi.getLocations("06", "ST");
+        List<MonitoringLocation> locations = UsgsWaterDataApi.getLocations(StateUtility.getStateCode("CA"), "ST");
         assertTrue(locations.size() > 100, "Expected many California stream locations");
         assertEquals("USGS", locations.get(0).agencyCode);
 
@@ -114,6 +117,11 @@ class UsgsWaterDataApiTest {
         }
     }
 
+    /**
+     * This test demonstrates the ability to retrieve time-series metadata for a large number of
+     *  monitoring locations efficently using the POST endpoint. 
+     * @throws Exception
+     */
     @Test
     @Tag("integration")
     void getMetadata_many_locations() throws Exception {
@@ -130,4 +138,29 @@ class UsgsWaterDataApiTest {
         logger.info("Queried " + count + " locations, got metadata for " + metadataMap.size());
     }
 
+
+    /**
+     * This test demonstrates the ability to retrieve continuous time-series data for a specific parameter and statistic, 
+     */
+    @Test
+    @Tag("integration")
+    void getContinuousTimeSeries() throws Exception {
+
+        String location_id = "USGS-08068800";
+        String parameter = Utility.ParameterCode.STAGE;
+        String statistic = Utility.StatisticCode.INSTANTANEOUS;
+        OffsetDateTime t1 = OffsetDateTime.of(2026, 1, 15, 0, 0, 0, 0, java.time.ZoneOffset.UTC);
+        OffsetDateTime t2 = OffsetDateTime.of(2026, 1, 16, 23, 59, 0, 0, java.time.ZoneOffset.UTC);
+        var continuousTimeSeries = UsgsWaterDataApi.getContinuousTimeSeries(location_id, parameter, statistic, t1, t2);
+
+        assertEquals(192,continuousTimeSeries.size());
+        // first value
+        assertEquals(OffsetDateTime.parse("2026-01-15T00:00:00Z").toInstant(), continuousTimeSeries.get(0).time);
+        assertEquals(102.53, continuousTimeSeries.get(0).value);
+        
+        // last value
+        assertEquals(OffsetDateTime.parse("2026-01-16T00:00:00Z").toInstant(), continuousTimeSeries.get(0).time);
+        assertEquals(102.40, continuousTimeSeries.get(continuousTimeSeries.size() - 1).value);
+
+    }
 }

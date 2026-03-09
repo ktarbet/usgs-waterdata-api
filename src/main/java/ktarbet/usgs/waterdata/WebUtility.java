@@ -18,7 +18,7 @@ import java.util.logging.Logger;
  * to reduce redundant network calls. Supports an optional API key
  * via the {@value #ENV_USGS_WATER_API_KEY} environment variable.
  */
-public class WebUtility {
+class WebUtility {
 
     private static final Logger logger = Logger.getLogger(WebUtility.class.getName());
 

@@ -1,6 +1,7 @@
 package ktarbet.usgs.waterdata;
 
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -11,6 +12,8 @@ import java.util.logging.Logger;
 /**
  * Client for the USGS Water Data API ({@code api.waterdata.usgs.gov}).
  *
+ * <a href="https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html#/">OpenAPI Documentation</a>
+ * 
  * <p>Provides methods to retrieve monitoring locations, daily time-series data,
  * and time-series metadata. Responses are cached in memory for five minutes
  * to reduce redundant network calls.
@@ -37,6 +40,24 @@ public class UsgsWaterDataApi {
     static final String TIME_SERIES_METADATA_POST_URL = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0";
     private UsgsWaterDataApi() {
         // Prevent instantiation
+    }
+
+    /**
+     * 
+     * @param monitoringLocationId
+     * @param parameterCode
+     * @param statisticId
+     * @param startDate
+     * @param endDate
+     * @return
+     * @throws Exception
+     */
+    public static List<InstantaneousValue> getContinuousTimeSeries(String monitoringLocationId, String parameterCode,
+                                                String statisticId, OffsetDateTime startDate, OffsetDateTime endDate) throws Exception {
+        String url = String.format(CONTINUOUS_URL, monitoringLocationId,
+                parameterCode, statisticId, startDate.toString(), endDate.toString());
+        String csv = WebUtility.getPage(url);
+        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
     }
 
     public static List<DailyValue> getDailyTimeSeries(String monitoringLocationId, String parameterCode,

@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
 
-public class DataTable {
+class DataTable {
 
     private final String[] columnNames;
     private final Map<String, Integer> columnIndex;
