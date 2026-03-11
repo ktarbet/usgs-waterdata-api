@@ -42,6 +42,12 @@ jar {
     }
 }
 
+tasks.register('demo', JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass = 'ktarbet.Demo'
+    jvmArgs '-Djava.util.logging.config.file=' + sourceSets.main.output.resourcesDir + '/logging.properties'
+}
+
 tasks.named('test') {
     useJUnitPlatform {
         excludeTags 'integration'

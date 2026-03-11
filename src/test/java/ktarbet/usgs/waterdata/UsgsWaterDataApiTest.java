@@ -5,8 +5,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
-import ktarbet.Utility;
-
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
@@ -147,11 +145,17 @@ class UsgsWaterDataApiTest {
     void getContinuousTimeSeries() throws Exception {
 
         String location_id = "USGS-08068800";
-        String parameter = Utility.ParameterCode.STAGE;
-        String statistic = Utility.StatisticCode.INSTANTANEOUS;
-        OffsetDateTime t1 = OffsetDateTime.of(2026, 1, 15, 0, 0, 0, 0, java.time.ZoneOffset.UTC);
-        OffsetDateTime t2 = OffsetDateTime.of(2026, 1, 16, 23, 59, 0, 0, java.time.ZoneOffset.UTC);
+        String parameter = Parameter.STAGE;
+        String statistic = Statistic.INSTANTANEOUS;
+        String t1 = "2026-01-15T00:00:00Z";
+        String t2 = "2026-01-16T23:59:00Z";
+
         var continuousTimeSeries = UsgsWaterDataApi.getContinuousTimeSeries(location_id, parameter, statistic, t1, t2);
+
+        for (int i = 0; i < Math.min(5, continuousTimeSeries.size()); i++) {
+            InstantaneousValue iv = continuousTimeSeries.get(i);
+            logger.info("  " + iv.time + " = " + iv.value);
+        }   
 
         assertEquals(192,continuousTimeSeries.size());
         // first value
@@ -159,8 +163,17 @@ class UsgsWaterDataApiTest {
         assertEquals(102.53, continuousTimeSeries.get(0).value);
         
         // last value
-        assertEquals(OffsetDateTime.parse("2026-01-16T00:00:00Z").toInstant(), continuousTimeSeries.get(0).time);
+        assertEquals(OffsetDateTime.parse("2026-01-16T23:45:00Z").toInstant(), continuousTimeSeries.get(continuousTimeSeries.size()-1).time);
         assertEquals(102.40, continuousTimeSeries.get(continuousTimeSeries.size() - 1).value);
+
+        var dailyTimeSeries = UsgsWaterDataApi.getDailyTimeSeries("USGS-13213000",
+                                                                    Parameter.DISCHARGE, Statistic.MEAN,
+                                                                    "2026-01-01T00:00:00Z", "2026-01-05T00:00:00Z");
+
+        for (int i = 0; i < dailyTimeSeries.size(); i++) {
+            DailyValue dv = dailyTimeSeries.get(i);
+            logger.info("  " + dv.date + " = " + dv.value);
+        }
 
     }
 }

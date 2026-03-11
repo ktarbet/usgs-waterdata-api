@@ -14,3 +14,4 @@ out/
 bin/**
 .gradle-user-home/**
 go.bat
+.claude/settings.local.json

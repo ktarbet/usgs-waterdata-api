@@ -1,4 +1,4 @@
-package ktarbet;
+package ktarbet.usgs.waterdata;
 
 import org.junit.jupiter.api.Test;
 
@@ -10,9 +10,10 @@ class UtilityTest {
 
     @Test
     void parameterCodeConstants_areJavaFriendly() {
-        assertEquals("00065", Utility.ParameterCode.STAGE);
+        assertEquals("00065", Parameter.STAGE);
     }
- @Test
+
+    @Test
     void getStateCode_returnsCorrectFipsCode() {
         assertEquals("06", Utility.getStateCode("CA"));
         assertEquals("48", Utility.getStateCode("TX"));

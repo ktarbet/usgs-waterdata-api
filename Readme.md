@@ -3,6 +3,64 @@
 A Java library for retrieving hydrologic data (daily values, peaks, time-series metadata, monitoring locations, etc.) from the USGS Water Data API. 
 
 
+```gradle
+// gradle
+implementation("io.github.ktarbet:usgs-waterdata-api:0.1.4")
+```
+
+
+```java
+// import ktarbet.usgs.waterdata.*;
+
+        // read metadata for a location
+        String location_id = "USGS-13213000";
+        var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
+        var PARI = TimeSeriesMetadata.filter(metadata, Parameter.DISCHARGE, Statistic.MEAN).get(0) ;
+
+        System.out.println("Station: " + PARI.monitoringLocationId);
+        System.out.println("Units: " + PARI.unitOfMeasure);
+
+        System.out.println("Read Daily Mean Discharge, Boise River at Parma");
+        
+        var dailyTimeSeries = UsgsWaterDataApi.getDailyTimeSeries(location_id,
+                Parameter.DISCHARGE, Statistic.MEAN,
+                "2026-01-01T00:00:00Z", "2026-01-05T00:00:00Z");
+
+        for (int i = 0; i < dailyTimeSeries.size() && i < 5; i++) {
+            DailyValue dv = dailyTimeSeries.get(i);
+            System.out.println("  " + dv.date + " = " + dv.value);
+        }
+
+        System.out.println("Read Continuous Stage Data, Cypress Creek at Grant Rd nr Cypress, TX");
+        String location_id2 = "USGS-08068800";
+        var continuousTimeSeries = UsgsWaterDataApi.getContinuousTimeSeries(
+                location_id2, Parameter.STAGE, Statistic.INSTANTANEOUS,
+                "2026-01-15T00:00:00Z", "2026-01-16T23:59:00Z");
+
+        for (int i = 0; i < continuousTimeSeries.size() && i < 5; i++) {
+            InstantaneousValue iv = continuousTimeSeries.get(i);
+            System.out.println("  " + iv.time + " = " + iv.value);
+        }
+```
+
+```output.txt
+Station: USGS-13213000
+Units: ft^3/s
+Read Daily Mean Discharge, Boise River at Parma
+  2026-01-01 = 876.0
+  2026-01-02 = 951.0
+  2026-01-03 = 936.0
+  2026-01-04 = 949.0
+  2026-01-05 = 932.0
+Read Continuous Stage Data, Cypress Creek at Grant Rd nr Cypress, TX
+  2026-01-15T00:00:00Z = 102.53
+  2026-01-15T00:15:00Z = 102.53
+  2026-01-15T00:30:00Z = 102.53
+  2026-01-15T00:45:00Z = 102.53
+  2026-01-15T01:00:00Z = 102.53
+```
+
+
 ## API Key
 
 Set the `USGS_WATER_API_KEY` environment variable to increase rate limits. Without a key, requests are subject to lower anonymous throttling.
@@ -32,6 +90,8 @@ Files are named from the response `Content-Disposition` header. Duplicate filena
 # TODO
 
  - Allow user to specify what paramters they want such as 'Flow' (USGS python pdf may be helpful.)
+ - Support Basic Proxy settings?
+
  Station Name=HYDER AK
 Stream Name=SALMON R
 Station ID=15008000

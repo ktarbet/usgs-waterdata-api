@@ -54,20 +54,41 @@ public class UsgsWaterDataApi {
      */
     public static List<InstantaneousValue> getContinuousTimeSeries(String monitoringLocationId, String parameterCode,
                                                 String statisticId, OffsetDateTime startDate, OffsetDateTime endDate) throws Exception {
+       return getContinuousTimeSeries(monitoringLocationId, parameterCode, statisticId, startDate.toString(), endDate.toString());
+    }
+
+    public static List<InstantaneousValue> getContinuousTimeSeries(String monitoringLocationId, String parameterCode,
+                                                String statisticId, String startDate, String endDate) throws Exception {
         String url = String.format(CONTINUOUS_URL, monitoringLocationId,
-                parameterCode, statisticId, startDate.toString(), endDate.toString());
+                parameterCode, statisticId, startDate, endDate);
         String csv = WebUtility.getPage(url);
         return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
     }
 
     public static List<DailyValue> getDailyTimeSeries(String monitoringLocationId, String parameterCode,
                                                 String statisticId, LocalDate startDate, LocalDate endDate) throws Exception {
+        return getDailyTimeSeries(monitoringLocationId, parameterCode, statisticId, startDate.toString(), endDate.toString());
+    }
+
+    /**
+     * Retrieves daily time-series data for a specific monitoring location, parameter, and statistic.
+     * @param monitoringLocationId
+     * @param parameterCode
+     * @param statisticId
+     * @param startDate  -  expression adhere to RFC 333
+     * @param endDate - expression adhere to RFC 3339, e.g. "2020-01-01T00:00:00Z"
+     * @return
+     * @throws Exception
+     */
+    public static List<DailyValue> getDailyTimeSeries(String monitoringLocationId, String parameterCode,
+                                                String statisticId, String startDate, String endDate) throws Exception {
         String url = String.format(DAILY_URL, monitoringLocationId,
-                parameterCode, statisticId, startDate.toString(), endDate.toString());
+                parameterCode, statisticId, startDate, endDate);
         String csv = WebUtility.getPage(url);
         List<DailyValue> values = CsvFile.fromString(csv).mapRows(DailyValue::fromRow);
         return DailyValue.ensureContinuous(values);
     }
+
 
     public static List<MonitoringLocation> getLocations(String stateCode, String siteTypeCode) throws Exception {
         String url = String.format(LOCATIONS_URL, stateCode, siteTypeCode);

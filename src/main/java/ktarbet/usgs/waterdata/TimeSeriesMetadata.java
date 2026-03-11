@@ -41,6 +41,26 @@ public class TimeSeriesMetadata {
                 .collect(Collectors.toList());
     }
 
+    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, List<String> parameterCodes) {
+        return metadata.stream()
+                .filter(ts -> parameterCodes != null && !parameterCodes.isEmpty() && parameterCodes.contains(ts.parameterCode))
+                .collect(Collectors.toList());
+    }
+
+    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, String parameterCode, String statisticCode) {
+    return metadata.stream()
+            .filter(ts -> parameterCode != null && !parameterCode.isEmpty() && parameterCode.equals(ts.parameterCode))
+                .filter(ts -> statisticCode != null && !statisticCode.isEmpty() && statisticCode.equals(ts.statisticId))
+                .collect(Collectors.toList());
+    }
+
+    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, String[] parameterCodes, String[] statisticCodes) {
+        return metadata.stream()
+                .filter(ts -> parameterCodes != null && parameterCodes.length > 0 && java.util.Arrays.asList(parameterCodes).contains(ts.parameterCode))
+                .filter(ts -> statisticCodes != null && statisticCodes.length > 0 && java.util.Arrays.asList(statisticCodes).contains(ts.statisticId))
+                .collect(Collectors.toList());
+    }
+
     /**
      * Filters to most common Daily time series within a date range
      */

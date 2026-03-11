@@ -98,10 +98,15 @@ class WebUtility {
                 .ifPresent(v -> {
                     logger.info("Rate limit: " + v + " of " + rateLimit + " remaining");
                     if ("0".equals(v.trim())) {
-                        throw new RuntimeException(
-                                "USGS API rate limit exceeded (0 of " + rateLimit + " requests remaining). "
-                                + "Register for an API key at https://api.waterdata.usgs.gov/signup/ "
-                                + "and set the " + ENV_USGS_WATER_API_KEY + " environment variable.");
+                        String apiKey = System.getenv(ENV_USGS_WATER_API_KEY);
+                        String msg =  "USGS API rate limit exceeded (0 of " + rateLimit + " requests remaining). ";
+                        if (apiKey != null && !apiKey.isEmpty()) {
+                            msg += "Consider using a different API key or waiting before making more requests.";
+                        } else {
+                            msg += "No API key detected. " + "Register for an API key at https://api.waterdata.usgs.gov/signup/ "
+                                    + "and set the " + ENV_USGS_WATER_API_KEY + " environment variable to increase your rate limit.";
+                        }
+                        throw new RuntimeException(msg);
                     }
                 });
         if (Boolean.getBoolean("usgs.debug")) {

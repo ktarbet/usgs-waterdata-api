@@ -1,4 +1,4 @@
-package ktarbet;
+package ktarbet.usgs.waterdata;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,45 +14,7 @@ public final class Utility {
         // static utility class, prevent instantiation
     }
 
-    public static final class ParameterCode {
-        public static final String WATER_TEMPERATURE = "00010";
-        public static final String AIR_TEMPERATURE = "00021";
-        public static final String WIND_SPEED = "00035";
-        public static final String WIND_DIRECTION = "00036";
-        public static final String PRECIPITATION = "00045";
-        public static final String RELATIVE_HUMIDITY = "00052";
-        public static final String FLOW = "00060";
-        public static final String STAGE = "00065";
-        public static final String SPECIFIC_CONDUCTANCE = "00095";
-        public static final String SALINITY = "00096";
-        public static final String RESERVOIR_STORAGE = "72036";
-        public static final String SOLAR_RADIATION = "62608";
-        public static final String ELEVATION_NAVD88 = "63160";
-
-        private ParameterCode() {
-        }
-    }
-
-    public static final class StatisticCode {
-        public static final String MAXIMUM = "00001";
-        public static final String MINIMUM = "00002";
-        public static final String MEAN = "00003";
-        public static final String AM = "00004";
-        public static final String PM = "00005";
-        public static final String SUM = "00006";
-        public static final String MODE = "00007";
-        public static final String MEDIAN = "00008";
-        public static final String STD = "00009";
-        public static final String VARIANCE = "00010";
-        public static final String INSTANTANEOUS = "00011";
-        public static final String EQUIVALENT_MEAN = "00012";
-        public static final String SKEWNESS = "00013";
-
-        private StatisticCode() {
-        }
-    }
-
-     private static final Map<String, StateInfo> statesByAbbreviation = new HashMap<>();
+    private static final Map<String, StateInfo> statesByAbbreviation = new HashMap<>();
 
     public static class StateInfo {
         public String state;
