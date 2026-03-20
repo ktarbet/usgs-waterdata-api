@@ -1,12 +1,11 @@
 package ktarbet.usgs.waterdata;
 
-import java.time.LocalDate;
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.logging.Logger;
 
 /**
@@ -15,10 +14,10 @@ import java.util.logging.Logger;
  * <a href="https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html#/">OpenAPI Documentation</a>
  * 
  * <p>Provides methods to retrieve monitoring locations, daily time-series data,
- * and time-series metadata. Responses are cached in memory for five minutes
- * to reduce redundant network calls.
+ * continuous time-series data, and time-series metadata. Responses are cached in 
+ * memory for five minutes to reduce redundant network calls.
  *
- * <p><b>Rate limits:</b> 50 requests per hour and 50,000 responses per request
+ * <p>USGS has - <b>Rate limits:</b> 50 requests per hour and 50,000 responses per request
  * without an API key. With an API key: 1,000 requests per hour and 50,000
  * responses per request. Register for a key at
  * <a href="https://api.waterdata.usgs.gov/signup/">https://api.waterdata.usgs.gov/signup/</a>
@@ -32,73 +31,106 @@ public class UsgsWaterDataApi {
     
     static final String ROOT_URL                      = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/";
     static final String LOCATIONS_URL                 = ROOT_URL + "monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
-    static final String TIME_SERIES_QUERY             = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&monitoring_location_id=%s&parameter_code=%s&statistic_id=%s&time=%s/%s";
-    static final String DAILY_URL                     = ROOT_URL + "daily/" + TIME_SERIES_QUERY;
-    static final String CONTINUOUS_URL                = ROOT_URL + "continuous/" + TIME_SERIES_QUERY;
+    static final String TIME_SERIES_QUERY_ID          = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&time_series_id=%s&time=%s/%s";
+    static final String DAILY_URL_ID                  = ROOT_URL + "daily/" + TIME_SERIES_QUERY_ID;
+    static final String CONTINUOUS_URL_ID             = ROOT_URL + "continuous/" + TIME_SERIES_QUERY_ID;
     static final String TIME_SERIES_METADATA_PROPERTIES = "id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id";
     static final String TIME_SERIES_METADATA_URL      = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0&monitoring_location_id=%s";
     static final String TIME_SERIES_METADATA_POST_URL = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0";
+    private static volatile String apiKey;
+    private static volatile String applicationName;
+
     private UsgsWaterDataApi() {
         // Prevent instantiation
     }
 
     /**
-     * 
-     * @param monitoringLocationId
-     * @param parameterCode
-     * @param statisticId
-     * @param startDate
-     * @param endDate
-     * @return
-     * @throws Exception
+     * Sets the API key used for subsequent requests.
+     * This takes priority over the environment variable.
      */
-    public static List<InstantaneousValue> getContinuousTimeSeries(String monitoringLocationId, String parameterCode,
-                                                String statisticId, OffsetDateTime startDate, OffsetDateTime endDate) throws Exception {
-       return getContinuousTimeSeries(monitoringLocationId, parameterCode, statisticId, startDate.toString(), endDate.toString());
-    }
-
-    public static List<InstantaneousValue> getContinuousTimeSeries(String monitoringLocationId, String parameterCode,
-                                                String statisticId, String startDate, String endDate) throws Exception {
-        String url = String.format(CONTINUOUS_URL, monitoringLocationId,
-                parameterCode, statisticId, startDate, endDate);
-        String csv = WebUtility.getPage(url);
-        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
-    }
-
-    public static List<DailyValue> getDailyTimeSeries(String monitoringLocationId, String parameterCode,
-                                                String statisticId, LocalDate startDate, LocalDate endDate) throws Exception {
-        return getDailyTimeSeries(monitoringLocationId, parameterCode, statisticId, startDate.toString(), endDate.toString());
+    public static void setApiKey(String key) {
+        apiKey = key;
     }
 
     /**
-     * Retrieves daily time-series data for a specific monitoring location, parameter, and statistic.
-     * @param monitoringLocationId
-     * @param parameterCode
-     * @param statisticId
-     * @param startDate  -  expression adhere to RFC 333
-     * @param endDate - expression adhere to RFC 3339, e.g. "2020-01-01T00:00:00Z"
-     * @return
-     * @throws Exception
+     * Sets an optional application name included in the User-Agent header
+     * of every request. This helps USGS identify the calling application.
      */
-    public static List<DailyValue> getDailyTimeSeries(String monitoringLocationId, String parameterCode,
-                                                String statisticId, String startDate, String endDate) throws Exception {
-        String url = String.format(DAILY_URL, monitoringLocationId,
-                parameterCode, statisticId, startDate, endDate);
-        String csv = WebUtility.getPage(url);
-        List<DailyValue> values = CsvFile.fromString(csv).mapRows(DailyValue::fromRow);
-        return DailyValue.ensureContinuous(values);
+    public static void setApplicationName(String name) {
+        applicationName = name;
     }
 
+    /**
+     * Returns the current application name, or null if not set.
+     */
+    public static String getApplicationName() {
+        return applicationName;
+    }
+
+    /**
+     * Returns the current API key: the in-memory key if set,
+     * otherwise the environment variable, or null if neither is set.
+     */
+    public static String getApiKey() {
+        String key = apiKey;
+        if (key != null && !key.isEmpty()) {
+            return key;
+        }
+        return System.getenv(UsgsApiKeyException.ENV_VAR_NAME);
+    }
+
+
+    private static List<DailyValue> fetchDailyValues(String timeSeriesId, String startDate, String endDate) throws Exception {
+        String url = String.format(DAILY_URL_ID, timeSeriesId, startDate, endDate);
+        String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return DailyValue.ensureContinuous(CsvFile.fromString(csv).mapRows(DailyValue::fromRow));
+    }
+
+    private static List<InstantaneousValue> fetchContinuousValues(String timeSeriesId, String startDate, String endDate) throws Exception {
+        String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, startDate, endDate);
+        String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
+    }
+
+    /**
+     * Retrieves daily time-series data using metadata.
+     * Uses the time-series id for a precise query, which correctly handles
+     * locations that have multiple time-series for the same parameter/statistic.
+     * @param metadata identifies the time series (location, parameter, statistic)
+     * @param startDate start of date range (RFC 3339, e.g. "2020-01-01" or "2020-01-01T00:00:00Z")
+     * @param endDate end of date range (RFC 3339)
+     */
+    public static TimeSeries<DailyValue> getDailyTimeSeries(TimeSeriesMetadata metadata,
+                                                             String startDate, String endDate) throws Exception {
+        return new TimeSeries<>(metadata, fetchDailyValues(metadata.id, startDate, endDate));
+    }
+
+    /**
+     * Retrieves continuous time-series data using metadata.
+     * Uses the time-series id for a precise query, which correctly handles
+     * locations that have multiple time-series for the same parameter/statistic.
+     * @param metadata identifies the time series (location, parameter, statistic)
+     * @param startDate start of date range (RFC 3339)
+     * @param endDate end of date range (RFC 3339)
+     */
+    public static TimeSeries<InstantaneousValue> getContinuousTimeSeries(TimeSeriesMetadata metadata,
+                                                                          String startDate, String endDate) throws Exception {
+        return new TimeSeries<>(metadata, fetchContinuousValues(metadata.id, startDate, endDate));
+    }
 
     public static List<MonitoringLocation> getLocations(String stateCode, String siteTypeCode) throws Exception {
         String url = String.format(LOCATIONS_URL, stateCode, siteTypeCode);
         String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
         return CsvFile.fromString(csv).mapRows(MonitoringLocation::fromRow);
     }
 
     public static List<TimeSeriesMetadata> getTimeSeriesMetadata(String monitoringLocationId) throws Exception {
         String url = String.format(TIME_SERIES_METADATA_URL, monitoringLocationId);
         String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
         return CsvFile.fromString(csv).mapRows(TimeSeriesMetadata::fromRow);
     }
 

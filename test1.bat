@@ -1,4 +1,4 @@
-.\gradlew clean integrationTest --tests "ktarbet.usgs.waterdata.UsgsWaterDataApiTest.getContinuousTimeSeries" --info -PusgsDebug=true --rerun-tasks
+.\gradlew clean integrationTest --tests "ktarbet.usgs.waterdata.UsgsWaterDataApiTest.getContinuousTimeSeriesDuplicateStatistic" --info -PusgsDebug=true --rerun-tasks
 
 :: .\gradlew integrationTest --rerun-tasks --info -PusgsDebug=true
 

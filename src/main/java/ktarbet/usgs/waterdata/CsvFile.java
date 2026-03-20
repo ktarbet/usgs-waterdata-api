@@ -30,7 +30,7 @@ class CsvFile extends DataTable {
         try (reader) {
             String line = reader.readLine();
             if (line == null) {
-                throw new IOException("Empty CSV file");
+                return new ParseResult(new String[0], new ArrayList<>());
             }
             String[] columnNames = parseLine(line);
             List<String[]> rows = new ArrayList<>();
