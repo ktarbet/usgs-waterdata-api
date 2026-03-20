@@ -45,9 +45,8 @@ class CsvFileTest {
     }
 
     @Test
-    void unknownColumnThrows() throws Exception {
-        assertThrows(IllegalArgumentException.class,
-                () -> csv.get(0, "bogus_column"));
+    void unknownColumnReturnsEmpty() throws Exception {
+        assertEquals("", csv.get(0, "bogus_column"));
     }
 
     @Test

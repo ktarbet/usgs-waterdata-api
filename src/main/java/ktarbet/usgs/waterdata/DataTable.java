@@ -38,10 +38,14 @@ class DataTable {
     public String get(int row, String column) {
         Integer col = columnIndex.get(column);
         if (col == null) {
-            throw new IllegalArgumentException("Unknown column: " + column);
+            return "";
         }
         String[] r = rows.get(row);
         return col < r.length ? r[col] : "";
+    }
+
+    public boolean hasColumn(String column) {
+        return columnIndex.containsKey(column);
     }
 
     public double getDouble(int row, String column, double defaultValue) {

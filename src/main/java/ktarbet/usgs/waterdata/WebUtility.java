@@ -22,7 +22,7 @@ class WebUtility {
 
     private static final Logger logger = Logger.getLogger(WebUtility.class.getName());
 
-    static final String ENV_USGS_WATER_API_KEY = "USGS_WATER_API_KEY";
+    static final String ENV_USGS_WATER_API_KEY = UsgsApiKeyException.ENV_VAR_NAME;
     private static final long PAGE_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
     private static final int PAGE_CACHE_MAX_SIZE = 100;
     private static final ConcurrentHashMap<String, CacheEntry> PAGE_CACHE = new ConcurrentHashMap<>();
@@ -57,18 +57,33 @@ class WebUtility {
         return fetchPage(cacheKey, request);
     }
 
+    static final String GITHUB_URL = "https://github.com/ktarbet/usgs-waterdata-api";
+
     static HttpRequest.Builder buildRequest(String url) {
         HttpRequest.Builder builder = HttpRequest.newBuilder()
                 .uri(URI.create(url));
-        String apiKey = System.getenv(ENV_USGS_WATER_API_KEY);
+
+        StringBuilder ua = new StringBuilder("usgs-waterdata-api (" + GITHUB_URL + ")");
+        String appName = UsgsWaterDataApi.getApplicationName();
+        if (appName != null && !appName.isEmpty()) {
+            ua.append(" ").append(appName);
+        }
+        builder.header("User-Agent", ua.toString());
+
+        String apiKey = UsgsWaterDataApi.getApiKey();
         if (apiKey != null && !apiKey.isEmpty()) {
             if (!apiKeyLogged) {
                 apiKeyLogged = true;
-                logger.info("Using " + ENV_USGS_WATER_API_KEY + "=" + apiKey.substring(0, 3) + "...");
+                logger.info("Using " + ENV_USGS_WATER_API_KEY + "=" + maskKey(apiKey));
             }
             builder.header("X-Api-Key", apiKey);
         }
         return builder;
+    }
+
+    static String maskKey(String key) {
+        int show = Math.min(3, key.length() / 3);
+        return key.substring(0, show) + "*".repeat(key.length() - show);
     }
 
     static String fetchPage(String cacheKey, HttpRequest request) throws Exception {
@@ -87,6 +102,18 @@ class WebUtility {
 
         String responseBody = response.body();
         int statusCode = response.statusCode();
+
+        if (statusCode == 403) { // Forbidden - API key is missing or not authorized for this resource.
+            String key = UsgsWaterDataApi.getApiKey();
+            throw new UsgsApiKeyException(UsgsApiKeyException.Reason.FORBIDDEN,
+                    "unknown", key != null && !key.isEmpty());
+        }
+        if (statusCode == 429) { // Too Many Requests - Rate limit exceeded.
+            String rateLimit = response.headers().firstValue("X-RateLimit-Limit").orElse("unknown");
+            String key = UsgsWaterDataApi.getApiKey();
+            throw new UsgsApiKeyException(UsgsApiKeyException.Reason.RATE_LIMIT_EXCEEDED,
+                    rateLimit, key != null && !key.isEmpty());
+        }
         if (statusCode < 200 || statusCode >= 300) {
             throw new RuntimeException("HTTP " + statusCode
                     + " for " + request.uri()
@@ -98,17 +125,12 @@ class WebUtility {
                 .ifPresent(v -> {
                     logger.info("Rate limit: " + v + " of " + rateLimit + " remaining");
                     if ("0".equals(v.trim())) {
-                        String apiKey = System.getenv(ENV_USGS_WATER_API_KEY);
-                        String msg =  "USGS API rate limit exceeded (0 of " + rateLimit + " requests remaining). ";
-                        if (apiKey != null && !apiKey.isEmpty()) {
-                            msg += "Consider using a different API key or waiting before making more requests.";
-                        } else {
-                            msg += "No API key detected. " + "Register for an API key at https://api.waterdata.usgs.gov/signup/ "
-                                    + "and set the " + ENV_USGS_WATER_API_KEY + " environment variable to increase your rate limit.";
-                        }
-                        throw new RuntimeException(msg);
+                        logger.warning("Rate limit exhausted (0 of " + rateLimit
+                                + " remaining). Next request will likely be throttled.");
                     }
                 });
+
+        
         if (Boolean.getBoolean("usgs.debug")) {
             saveForDebugging(response, responseBody);
         }
@@ -133,8 +155,19 @@ class WebUtility {
                 }
             }
             if (filename == null || filename.isEmpty()) {
-                logger.info("No filename found in Content-Disposition header");
-                return;
+                // Derive a filename from the URL path and query
+                URI uri = response.uri();
+                String path = uri.getPath();
+                if (path != null && !path.isEmpty()) {
+                    filename = path.substring(path.lastIndexOf('/') + 1);
+                }
+                if (filename == null || filename.isEmpty()) {
+                    filename = "response";
+                }
+                // Append .txt if no extension
+                if (!filename.contains(".")) {
+                    filename += ".txt";
+                }
             }
             Path dir = Paths.get(System.getProperty("user.home"), "usgs.waterdata");
             Files.createDirectories(dir);

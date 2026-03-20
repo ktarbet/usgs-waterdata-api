@@ -1,0 +1,15 @@
+#
+# U.S. Geological Survey
+# National Water Information System
+# Retrieved: 2026-03-23
+#
+# This file contains the annual peak streamflow data.
+#
+# Data for the following 1 site(s) are contained in this file
+#    USGS 05495000 Fox River at Wayland, MO
+#
+agency_cd	site_no	peak_dt	peak_tm	peak_va	peak_cd	gage_ht	gage_ht_cd	year_last_pk	ag_dt	ag_tm	ag_gage_ht	ag_gage_ht_cd
+5s	15s	10d	6s	8s	33s	8s	27s	4s	10d	6s	8s	27s
+USGS	05495000	07/12/1922		2400		11.90	5
+USGS	05495000	03/16/1923		1980		11.00	5
+USGS	05495000	08/06/1924		3250		13.60	5

@@ -1,0 +1,8 @@
+// this file is for including this library as code instead of as a dependency. This is useful for development and debugging purposes.
+// used for development of HEE-DSSVue
+includeBuild("$gradle.ext.externalLibDir") {
+    dependencySubstitution {
+        substitute(module("io.github.ktarbet:usgs-waterdata-api"))
+                .using(project(":"))
+    }
+}

@@ -5,7 +5,7 @@ A Java library for retrieving hydrologic data (daily values, peaks, time-series 
 
 ```gradle
 // gradle
-implementation("io.github.ktarbet:usgs-waterdata-api:0.1.4")
+implementation("io.github.ktarbet:usgs-waterdata-api:0.2.*")
 ```
 
 
@@ -17,47 +17,61 @@ implementation("io.github.ktarbet:usgs-waterdata-api:0.1.4")
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
         var PARI = TimeSeriesMetadata.filter(metadata, Parameter.DISCHARGE, Statistic.MEAN).get(0) ;
 
-        System.out.println("Station: " + PARI.monitoringLocationId);
-        System.out.println("Units: " + PARI.unitOfMeasure);
-
+        // Use TimeSeries to get metadata + data together
         System.out.println("Read Daily Mean Discharge, Boise River at Parma");
-        
-        var dailyTimeSeries = UsgsWaterDataApi.getDailyTimeSeries(location_id,
-                Parameter.DISCHARGE, Statistic.MEAN,
+        TimeSeries<DailyValue> dailyTS = UsgsWaterDataApi.getDailyTimeSeries(PARI,
                 "2026-01-01T00:00:00Z", "2026-01-05T00:00:00Z");
 
-        for (int i = 0; i < dailyTimeSeries.size() && i < 5; i++) {
-            DailyValue dv = dailyTimeSeries.get(i);
+        System.out.println("Station: " + dailyTS.getMonitoringLocationId());
+        System.out.println("Units: " + dailyTS.getUnitOfMeasure());
+        System.out.println("Parameter: " + dailyTS.getParameterName());
+        for (int i = 0; i < dailyTS.size() && i < 5; i++) {
+            DailyValue dv = dailyTS.values.get(i);
             System.out.println("  " + dv.date + " = " + dv.value);
         }
 
-        System.out.println("Read Continuous Stage Data, Cypress Creek at Grant Rd nr Cypress, TX");
-        String location_id2 = "USGS-08068800";
-        var continuousTimeSeries = UsgsWaterDataApi.getContinuousTimeSeries(
-                location_id2, Parameter.STAGE, Statistic.INSTANTANEOUS,
-                "2026-01-15T00:00:00Z", "2026-01-16T23:59:00Z");
+        System.out.println("Read Continuous Water Temperature Data, Sacramento River at Freeport, CA");
+        String location_id2 = "USGS-11447650";
+        var metadata2 = UsgsWaterDataApi.getTimeSeriesMetadata(location_id2);
+        var tempMetas = TimeSeriesMetadata.filter(metadata2, Parameter.WATER_TEMPERATURE, Statistic.INSTANTANEOUS);
 
-        for (int i = 0; i < continuousTimeSeries.size() && i < 5; i++) {
-            InstantaneousValue iv = continuousTimeSeries.get(i);
-            System.out.println("  " + iv.time + " = " + iv.value);
+        for (var tempMeta : tempMetas) {
+            TimeSeries<InstantaneousValue> continuousTS = UsgsWaterDataApi.getContinuousTimeSeries(tempMeta,
+                    "2026-01-15T00:00:00Z", "2026-01-16T23:59:00Z");
+
+            System.out.println("Station: " + continuousTS.getMonitoringLocationId());
+            System.out.println("Sublocation: " + tempMeta.sublocationIdentifier);
+            System.out.println("Description: " + tempMeta.webDescription);
+            System.out.println("Units: " + continuousTS.getUnitOfMeasure());
+            System.out.println("Parameter: " + continuousTS.getParameterName());
+            for (int i = 0; i < continuousTS.size() && i < 5; i++) {
+                InstantaneousValue iv = continuousTS.values.get(i);
+                System.out.println("  " + iv.time + " = " + iv.value);
+            }
         }
 ```
 
 ```output.txt
+Read Daily Mean Discharge, Boise River at Parma
 Station: USGS-13213000
 Units: ft^3/s
-Read Daily Mean Discharge, Boise River at Parma
+Parameter: Discharge
   2026-01-01 = 876.0
   2026-01-02 = 951.0
   2026-01-03 = 936.0
   2026-01-04 = 949.0
   2026-01-05 = 932.0
-Read Continuous Stage Data, Cypress Creek at Grant Rd nr Cypress, TX
-  2026-01-15T00:00:00Z = 102.53
-  2026-01-15T00:15:00Z = 102.53
-  2026-01-15T00:30:00Z = 102.53
-  2026-01-15T00:45:00Z = 102.53
-  2026-01-15T01:00:00Z = 102.53
+Read Continuous Water Temperature Data, Sacramento River at Freeport, CA
+Station: USGS-11447650
+Sublocation: BGC PROJECT
+Description: East Fender
+Units: degC
+Parameter: Temperature, water
+  2026-01-15T00:00:00Z = 10.0
+  2026-01-15T00:15:00Z = 10.0
+  2026-01-15T00:30:00Z = 10.0
+  2026-01-15T00:45:00Z = 10.0
+  2026-01-15T01:00:00Z = 10.0
 ```
 
 
@@ -89,10 +103,13 @@ Files are named from the response `Content-Disposition` header. Duplicate filena
 
 # TODO
 
- - Allow user to specify what paramters they want such as 'Flow' (USGS python pdf may be helpful.)
- - Support Basic Proxy settings?
+ - Allow user to specify what paramters they want such as 'Flow'
+ - better meta-data filter such as .filter(interval=Daily).filter(t1,t2)
+ - keep querys below MAX size..
+ - document -Djava.net.useSystemProxies=true
+ - USGS to do: /ogcapi/v0/collections/peaks and /stac/v0/collections/ratings
 
- Station Name=HYDER AK
+Station Name=HYDER AK
 Stream Name=SALMON R
 Station ID=15008000
 Version Name=USGS
@@ -117,7 +134,6 @@ Reference and Examples
 
 
 USGS 13037500 SNAKE RIVER NR HEISE ID
-
 
 Parameter types
 00060  Discharge cfs 1Day
