@@ -4,13 +4,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
-public final class Utility {
+public final class StateLookup {
 
-    private Utility() {
+    private StateLookup() {
         // static utility class, prevent instantiation
     }
 
@@ -36,7 +39,7 @@ public final class Utility {
     }
 
     private static void init() {
-        try (InputStream is = Utility.class.getResourceAsStream("/national_state2020.txt");
+        try (InputStream is = StateLookup.class.getResourceAsStream("/national_state2020.txt");
              BufferedReader reader = new BufferedReader(new InputStreamReader(is))) {
 
             String line = reader.readLine(); // skip header
@@ -66,5 +69,39 @@ public final class Utility {
         return statesByAbbreviation.get(stateAbbreviation);
     }
 
+    /**
+     * Returns all StateInfo entries sorted by state name.
+     */
+    private static List<StateInfo> getSortedStates() {
+        if (statesByAbbreviation.isEmpty()) {
+            init();
+        }
+        List<StateInfo> sorted = new ArrayList<>(statesByAbbreviation.values());
+        sorted.sort(Comparator.comparing(info -> info.stateName));
+        return sorted;
+    }
+
+    /**
+     * Returns state names sorted alphabetically (e.g., "Alabama", "Alaska", ...).
+     */
+    public static String[] getStateNames() {
+        return getSortedStates().stream().map(info -> info.stateName).toArray(String[]::new);
+    }
+
+    /**
+     * Returns FIPS state codes in the same order as {@link #getStateNames()}
+     * (e.g., "01", "02", ...).
+     */
+    public static String[] getStateCodes() {
+        return getSortedStates().stream().map(info -> info.stateFp).toArray(String[]::new);
+    }
+
+    /**
+     * Returns two-letter state abbreviations in the same order as {@link #getStateNames()}
+     * (e.g., "AL", "AK", ...).
+     */
+    public static String[] getStateAbbreviations() {
+        return getSortedStates().stream().map(info -> info.state).toArray(String[]::new);
+    }
 
 }

@@ -45,7 +45,7 @@ public class UsgsWaterDataApi {
     }
 
     /**
-     * Sets the API key used for subsequent requests.
+     * Sets the API key used for later requests.
      * This takes priority over the environment variable.
      */
     public static void setApiKey(String key) {

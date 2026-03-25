@@ -100,6 +100,17 @@ class CsvFileTest {
     }
 
     @Test
+    void alaskaMonitoringLocations_allStartWithUSGS() throws Exception {
+        Path alaskaPath = Path.of(CsvFileTest.class.getResource("/monitoring-locations_Alaska.csv").toURI());
+        List<MonitoringLocation> locations = new CsvFile(alaskaPath).mapRows(MonitoringLocation::fromRow);
+        assertFalse(locations.isEmpty());
+        for (MonitoringLocation loc : locations) {
+            assertTrue(loc.id.startsWith("USGS-"),
+                    "Expected id to start with 'USGS-' but was: " + loc.id);
+        }
+    }
+
+    @Test
     void parseLine_handlesEmbeddedDoubleQuotes() throws Exception {
         java.nio.file.Path tmp = java.nio.file.Files.createTempFile("test", ".csv");
         java.nio.file.Files.writeString(tmp, "name,desc\n\"Alice\",\"She said \"\"hello\"\"\"\n");

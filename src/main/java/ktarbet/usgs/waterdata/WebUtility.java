@@ -10,6 +10,8 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * HTTP utility for fetching web pages with caching.
@@ -27,6 +29,8 @@ class WebUtility {
     private static final int PAGE_CACHE_MAX_SIZE = 100;
     private static final ConcurrentHashMap<String, CacheEntry> PAGE_CACHE = new ConcurrentHashMap<>();
     private static boolean apiKeyLogged = false;
+    private static final Pattern COLLECTION_NAME_PATTERN =
+            Pattern.compile("/collections/(?<collection>[a-z][a-z0-9\\-]*)/items\\b");
 
     private static class CacheEntry {
         final String body;
@@ -132,7 +136,8 @@ class WebUtility {
 
         
         if (Boolean.getBoolean("usgs.debug")) {
-            saveForDebugging(response, responseBody);
+            String prefix = filenamePrefixFromUrl(response.uri().toString());
+            saveForDebugging(response, responseBody, prefix);
         }
 
         if (PAGE_CACHE.size() >= PAGE_CACHE_MAX_SIZE) {
@@ -142,7 +147,15 @@ class WebUtility {
         return responseBody;
     }
 
-    private static void saveForDebugging(HttpResponse<String> response, String body) {
+    static String filenamePrefixFromUrl(String url) {
+        Matcher m = COLLECTION_NAME_PATTERN.matcher(url);
+        if (m.find()) {
+            return m.group("collection");
+        }
+        return "";
+    }
+
+    private static void saveForDebugging(HttpResponse<String> response, String body, String filenamePrefix) {
         try {
             Optional<String> disposition = response.headers().firstValue("Content-Disposition");
             String filename = null;
@@ -150,24 +163,24 @@ class WebUtility {
                 for (String part : disposition.get().split(";")) {
                     String trimmed = part.trim();
                     if (trimmed.startsWith("filename=")) {
-                        filename = trimmed.substring("filename=".length()).replace("\"", "").trim();
+                        filename = filenamePrefix + "_" + trimmed.substring("filename=".length()).replace("\"", "").trim();
                     }
                 }
             }
             if (filename == null || filename.isEmpty()) {
-                // Derive a filename from the URL path and query
-                URI uri = response.uri();
-                String path = uri.getPath();
-                if (path != null && !path.isEmpty()) {
-                    filename = path.substring(path.lastIndexOf('/') + 1);
-                }
-                if (filename == null || filename.isEmpty()) {
+                // Use the prefix (e.g. "continuous") as the base name
+                if (!filenamePrefix.isEmpty()) {
+                    filename = filenamePrefix;
+                } else {
                     filename = "response";
                 }
-                // Append .txt if no extension
-                if (!filename.contains(".")) {
-                    filename += ".txt";
+                // Determine extension from f= query parameter
+                String query = response.uri().getQuery();
+                String ext = ".txt";
+                if (query != null && query.contains("f=csv")) {
+                    ext = ".csv";
                 }
+                filename += ext;
             }
             Path dir = Paths.get(System.getProperty("user.home"), "usgs.waterdata");
             Files.createDirectories(dir);

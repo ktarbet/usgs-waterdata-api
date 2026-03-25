@@ -28,17 +28,36 @@ class CsvFile extends DataTable {
 
     private static ParseResult parse(BufferedReader reader) throws IOException {
         try (reader) {
-            String line = reader.readLine();
+            String line = readLogicalLine(reader);
             if (line == null) {
                 return new ParseResult(new String[0], new ArrayList<>());
             }
             String[] columnNames = parseLine(line);
             List<String[]> rows = new ArrayList<>();
-            while ((line = reader.readLine()) != null) {
+            while ((line = readLogicalLine(reader)) != null) {
                 rows.add(parseLine(line));
             }
             return new ParseResult(columnNames, rows);
         }
+    }
+
+    /**
+     * Reads a complete logical CSV line, joining continuation lines when a quoted
+     * field contains embedded newlines.
+     */
+    private static String readLogicalLine(BufferedReader reader) throws IOException {
+        String line = reader.readLine();
+        if (line == null) return null;
+        while (hasUnclosedQuote(line)) {
+            String next = reader.readLine();
+            if (next == null) break;
+            line = line + "\n" + next;
+        }
+        return line;
+    }
+
+    private static boolean hasUnclosedQuote(String line) {
+        return line.chars().filter(c -> c == '"').count() % 2 != 0;
     }
 
     private static String[] parseLine(String line) {

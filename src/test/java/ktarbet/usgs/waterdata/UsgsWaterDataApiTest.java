@@ -21,7 +21,7 @@ class UsgsWaterDataApiTest {
     @Test
     @Tag("integration")
     void getLocations_californiaStreams() throws Exception {
-        List<MonitoringLocation> locations = UsgsWaterDataApi.getLocations(StateUtility.getStateCode("CA"), "ST");
+        List<MonitoringLocation> locations = UsgsWaterDataApi.getLocations(StateLookup.getStateCode("CA"), "ST");
         assertTrue(locations.size() > 100, "Expected many California stream locations");
         assertEquals("USGS", locations.get(0).agencyCode);
 

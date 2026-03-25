@@ -6,7 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-class UtilityTest {
+class StateLookupTest {
 
     @Test
     void parameterCodeConstants_areJavaFriendly() {
@@ -15,19 +15,19 @@ class UtilityTest {
 
     @Test
     void getStateCode_returnsCorrectFipsCode() {
-        assertEquals("06", Utility.getStateCode("CA"));
-        assertEquals("48", Utility.getStateCode("TX"));
-        assertEquals("36", Utility.getStateCode("NY"));
+        assertEquals("06", StateLookup.getStateCode("CA"));
+        assertEquals("48", StateLookup.getStateCode("TX"));
+        assertEquals("36", StateLookup.getStateCode("NY"));
     }
 
     @Test
     void getStateCode_returnsNullForUnknown() {
-        assertNull(Utility.getStateCode("ZZ"));
+        assertNull(StateLookup.getStateCode("ZZ"));
     }
 
     @Test
     void getStateInfo_returnsFullInfo() {
-        Utility.StateInfo info = Utility.getStateInfo("CA");
+        StateLookup.StateInfo info = StateLookup.getStateInfo("CA");
         assertNotNull(info);
         assertEquals("CA", info.state);
         assertEquals("06", info.stateFp);
