@@ -45,6 +45,11 @@ public class DailyValue {
      * @return A new list with a continuous sequence of dates
      *         Returns the original list if it's null, empty, or has only one element.
      */
+    @Override
+    public String toString() {
+        return date + " = " + value;
+    }
+
     public static List<DailyValue> ensureContinuous(List<DailyValue> values) {
         if (values == null || values.size() <= 1) {
             return values;

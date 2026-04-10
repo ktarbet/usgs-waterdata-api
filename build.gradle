@@ -46,6 +46,7 @@ tasks.register('demo', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
     mainClass = 'ktarbet.Demo'
     jvmArgs '-Djava.util.logging.config.file=' + sourceSets.main.output.resourcesDir + '/logging.properties'
+    systemProperty 'usgs.debug', System.getProperty('usgs.debug', 'false')
 }
 
 tasks.named('test') {

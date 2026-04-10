@@ -10,7 +10,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -81,7 +80,7 @@ class UsgsWaterDataApiTest {
                     + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
         }
 
-        metadata = TimeSeriesMetadata.filterDaily(metadata, t1, t2);
+        metadata = TimeSeriesMetadata.filter(metadata).daily().dateRange(t1, t2).toList();
         logger.info("Filtered to " + metadata.size() + " Daily time-series");
         for (TimeSeriesMetadata ts : metadata) {
             logger.info("  " + ts.parameterCode + " " + ts.parameterName
@@ -101,7 +100,7 @@ class UsgsWaterDataApiTest {
     @Tag("integration")
     void dailyData_ShellpotCreek() throws Exception {
         List<TimeSeriesMetadata> metadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-01477800");
-        metadata = TimeSeriesMetadata.filterDaily(metadata);
+        metadata = TimeSeriesMetadata.filter(metadata).daily().toList();
         for (TimeSeriesMetadata ts : metadata) {
             logger.info("  " + ts.parameterCode + " " + ts.parameterName
                     + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end);
@@ -152,8 +151,8 @@ class UsgsWaterDataApiTest {
         String t1 = "2026-01-15T06:00:00Z";
         String t2 = "2026-01-15T12:00:00Z";
 
-        var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id).stream()
-                .filter(ts -> ts.parameterCode.equals(parameter) && ts.statisticId.equals(statistic))
+        var metadata = TimeSeriesMetadata.filter(UsgsWaterDataApi.getTimeSeriesMetadata(location_id))
+                .parameterCode(parameter).statisticId(statistic)
                 .findFirst().orElseThrow();
 
         var continuousTimeSeries = UsgsWaterDataApi.getContinuousTimeSeries(metadata, t1, t2);
@@ -171,8 +170,8 @@ class UsgsWaterDataApiTest {
         assertEquals(OffsetDateTime.parse("2026-01-15T12:00:00Z").toInstant(), continuousTimeSeries.get(continuousTimeSeries.size()-1).time);
 
         // Also test daily via metadata
-        var dailyMetadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-13213000").stream()
-                .filter(ts -> ts.parameterCode.equals(Parameter.DISCHARGE) && ts.statisticId.equals(Statistic.MEAN))
+        var dailyMetadata = TimeSeriesMetadata.filter(UsgsWaterDataApi.getTimeSeriesMetadata("USGS-13213000"))
+                .parameterCode(Parameter.DISCHARGE).statisticId(Statistic.MEAN)
                 .findFirst().orElseThrow();
 
         var dailyTimeSeries = UsgsWaterDataApi.getDailyTimeSeries(dailyMetadata,
@@ -202,9 +201,10 @@ class UsgsWaterDataApiTest {
         String t1 = "2026-03-15T00:00:00Z";
         String t2 = "2026-03-19T23:59:00Z";
 
-        var timeSeriesMetadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id).stream()
-                .filter(ts -> ts.parameterCode.equals(parameter) && ts.statisticId.equals(statistic) && ts.begin != null)
-                .collect(Collectors.toList());
+        var timeSeriesMetadata = TimeSeriesMetadata.filter(UsgsWaterDataApi.getTimeSeriesMetadata(location_id))
+                .parameterCode(parameter).statisticId(statistic)
+                .where(ts -> ts.begin != null)
+                .toList();
 
 
                 timeSeriesMetadata.forEach(ts -> logger.info("Metadata: " + ts.monitoringLocationId + " " + ts.parameterCode + " " + ts.statisticId

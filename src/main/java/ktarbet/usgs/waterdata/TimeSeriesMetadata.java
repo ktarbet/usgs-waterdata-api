@@ -31,44 +31,20 @@ public class TimeSeriesMetadata {
     public String parentTimeSeriesId;
 
     /**
-     * Filters to most common Daily time series
+     * Returns a fluent filter for chaining filter conditions on the given metadata list.
+     *
+     * <p>Example:
+     * <pre>
+     * var results = TimeSeriesMetadata.filter(metadata)
+     *     .parameterCode(Parameter.DISCHARGE)
+     *     .statisticId(Statistic.MEAN)
+     *     .toList();
+     * </pre>
+     *
+     * @see TimeSeriesFilter
      */
-    public static List<TimeSeriesMetadata> filterDaily(List<TimeSeriesMetadata> metadata) {
-        return metadata.stream()
-                .filter(ts -> "Daily".equals(ts.computationPeriodIdentifier))
-                .filter(ts -> ts.statisticId != null && !ts.statisticId.isEmpty())
-                .filter(ts -> "Mean".equals(ts.computationIdentifier) || "Instantaneous".equals(ts.computationIdentifier))
-                .collect(Collectors.toList());
-    }
-
-    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, List<String> parameterCodes) {
-        return metadata.stream()
-                .filter(ts -> parameterCodes != null && !parameterCodes.isEmpty() && parameterCodes.contains(ts.parameterCode))
-                .collect(Collectors.toList());
-    }
-
-    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, String parameterCode, String statisticCode) {
-    return metadata.stream()
-            .filter(ts -> parameterCode != null && !parameterCode.isEmpty() && parameterCode.equals(ts.parameterCode))
-                .filter(ts -> statisticCode != null && !statisticCode.isEmpty() && statisticCode.equals(ts.statisticId))
-                .collect(Collectors.toList());
-    }
-
-    public static List<TimeSeriesMetadata> filter(List<TimeSeriesMetadata> metadata, String[] parameterCodes, String[] statisticCodes) {
-        return metadata.stream()
-                .filter(ts -> parameterCodes != null && parameterCodes.length > 0 && java.util.Arrays.asList(parameterCodes).contains(ts.parameterCode))
-                .filter(ts -> statisticCodes != null && statisticCodes.length > 0 && java.util.Arrays.asList(statisticCodes).contains(ts.statisticId))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * Filters to most common Daily time series within a date range
-     */
-    public static List<TimeSeriesMetadata> filterDaily(List<TimeSeriesMetadata> metadata, LocalDate start, LocalDate end) {
-        return filterDaily(metadata).stream()
-                .filter(ts -> ts.begin != null && ts.end != null
-                        && ts.begin.compareTo(end) <= 0 && ts.end.compareTo(start) >= 0)
-                .collect(Collectors.toList());
+    public static TimeSeriesFilter filter(List<TimeSeriesMetadata> metadata) {
+        return new TimeSeriesFilter(metadata);
     }
 
     public static class DateRange {

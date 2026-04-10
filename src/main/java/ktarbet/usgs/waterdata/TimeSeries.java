@@ -27,6 +27,16 @@ public class TimeSeries<T> {
     public int size() { return values.size(); }
     public boolean isEmpty() { return values.isEmpty(); }
 
+    public void printToConsole() {
+        printToConsole(size());
+    }
+
+    public void printToConsole(int n) {
+        for (int i = 0; i < size() && i < n; i++) {
+            System.out.println("  " + values.get(i));
+        }
+    }
+
     @Override
     public String toString() {
         return metadata.toString() + " (" + values.size() + " values)";

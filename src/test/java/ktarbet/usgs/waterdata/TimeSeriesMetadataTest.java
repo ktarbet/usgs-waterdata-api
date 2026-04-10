@@ -15,7 +15,8 @@ public class TimeSeriesMetadataTest {
         
         List<TimeSeriesMetadata> metadataList = csv.mapRows(TimeSeriesMetadata::fromRow);
 
-        var filtered = TimeSeriesMetadata.filter(metadataList, Parameter.DISCHARGE, Statistic.MEAN);
+        var filtered = TimeSeriesMetadata.filter(metadataList)
+                .parameterCode(Parameter.DISCHARGE).statisticId(Statistic.MEAN).toList();
         assertEquals(1, filtered.size());
         assertEquals(Parameter.DISCHARGE, filtered.get(0).parameterCode);
         assertEquals(Statistic.MEAN, filtered.get(0).statisticId);

@@ -1,6 +1,6 @@
 # usgs-water-api
 
-A Java library for retrieving hydrologic data (daily values, peaks, time-series metadata, monitoring locations, etc.) from the USGS Water Data API. 
+A Java library for retrieving hydrologic data (daily values, peaks, continous (15-minute),  time-series metadata, monitoring locations) from the USGS Water Data API. 
 
 
 ```gradle
@@ -11,11 +11,12 @@ implementation("io.github.ktarbet:usgs-waterdata-api:0.2.*")
 
 ```java
 // import ktarbet.usgs.waterdata.*;
-
         // read metadata for a location
         String location_id = "USGS-13213000";
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
-        var PARI = TimeSeriesMetadata.filter(metadata, Parameter.DISCHARGE, Statistic.MEAN).get(0) ;
+        var PARI = TimeSeriesMetadata.filter(metadata)
+                .parameterCode(Parameter.DISCHARGE).statisticId(Statistic.MEAN)
+                .findFirst().orElseThrow();
 
         // Use TimeSeries to get metadata + data together
         System.out.println("Read Daily Mean Discharge, Boise River at Parma");
@@ -25,15 +26,14 @@ implementation("io.github.ktarbet:usgs-waterdata-api:0.2.*")
         System.out.println("Station: " + dailyTS.getMonitoringLocationId());
         System.out.println("Units: " + dailyTS.getUnitOfMeasure());
         System.out.println("Parameter: " + dailyTS.getParameterName());
-        for (int i = 0; i < dailyTS.size() && i < 5; i++) {
-            DailyValue dv = dailyTS.values.get(i);
-            System.out.println("  " + dv.date + " = " + dv.value);
-        }
+        dailyTS.printToConsole(5);
 
         System.out.println("Read Continuous Water Temperature Data, Sacramento River at Freeport, CA");
         String location_id2 = "USGS-11447650";
         var metadata2 = UsgsWaterDataApi.getTimeSeriesMetadata(location_id2);
-        var tempMetas = TimeSeriesMetadata.filter(metadata2, Parameter.WATER_TEMPERATURE, Statistic.INSTANTANEOUS);
+        var tempMetas = TimeSeriesMetadata.filter(metadata2)
+                .parameterCode(Parameter.WATER_TEMPERATURE).statisticId(Statistic.INSTANTANEOUS)
+                .toList();
 
         for (var tempMeta : tempMetas) {
             TimeSeries<InstantaneousValue> continuousTS = UsgsWaterDataApi.getContinuousTimeSeries(tempMeta,
@@ -44,23 +44,35 @@ implementation("io.github.ktarbet:usgs-waterdata-api:0.2.*")
             System.out.println("Description: " + tempMeta.webDescription);
             System.out.println("Units: " + continuousTS.getUnitOfMeasure());
             System.out.println("Parameter: " + continuousTS.getParameterName());
-            for (int i = 0; i < continuousTS.size() && i < 5; i++) {
-                InstantaneousValue iv = continuousTS.values.get(i);
-                System.out.println("  " + iv.time + " = " + iv.value);
-            }
+            continuousTS.printToConsole(5);
+            System.out.println();
         }
-```
+
+        // read a very specific time-series  (There are two temperature time-series at this location, so we have to be specific about which one we want)
+        var eastFender = TimeSeriesMetadata.filter(metadata2)
+           .parameterCode(Parameter.WATER_TEMPERATURE)
+           .statisticId(Statistic.INSTANTANEOUS)
+           .sublocation("BGC PROJECT")
+           .descriptionContains("East Fender").findFirst().orElseThrow();
+
+        System.out.println("Reading East Fender time-series... (current data)");
+        String end = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+        String start = Instant.now().minus(7, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS).toString();
+        TimeSeries<InstantaneousValue> eastfenderTS = UsgsWaterDataApi.getContinuousTimeSeries(eastFender,
+                    start, end);
+        
+        eastfenderTS.printToConsole(5);
 
 ```output.txt
 Read Daily Mean Discharge, Boise River at Parma
 Station: USGS-13213000
 Units: ft^3/s
 Parameter: Discharge
-  2026-01-01 = 876.0
-  2026-01-02 = 951.0
-  2026-01-03 = 936.0
-  2026-01-04 = 949.0
-  2026-01-05 = 932.0
+  2026-01-01 = 884.0
+  2026-01-02 = 960.0
+  2026-01-03 = 945.0
+  2026-01-04 = 959.0
+  2026-01-05 = 942.0
 Read Continuous Water Temperature Data, Sacramento River at Freeport, CA
 Station: USGS-11447650
 Sublocation: BGC PROJECT
@@ -72,6 +84,30 @@ Parameter: Temperature, water
   2026-01-15T00:30:00Z = 10.0
   2026-01-15T00:45:00Z = 10.0
   2026-01-15T01:00:00Z = 10.0
+
+Station: USGS-11447650
+Sublocation: West Fender
+Description: West Fender
+Units: degC
+Parameter: Temperature, water
+
+Station: USGS-11447650
+Sublocation:
+Description: Right Bank Pump Stand
+Units: degC
+Parameter: Temperature, water
+  2026-01-15T00:00:00Z = 10.0
+  2026-01-15T00:15:00Z = 10.0
+  2026-01-15T00:30:00Z = 10.0
+  2026-01-15T00:45:00Z = 10.0
+  2026-01-15T01:00:00Z = 10.0
+
+Reading East Fender time-series... (current data)
+  2026-04-10T14:45:00Z = 19.0
+  2026-04-10T15:00:00Z = 19.0
+  2026-04-10T15:15:00Z = 19.0
+  2026-04-10T15:30:00Z = 19.0
+  2026-04-10T15:45:00Z = 19.0
 ```
 
 
@@ -104,7 +140,7 @@ Files are named from the response `Content-Disposition` header. Duplicate filena
 # TODO
 
  - Allow user to specify what paramters they want such as 'Flow'
- - better meta-data filter such as .filter(interval=Daily).filter(t1,t2)
+ - Use the /combined-metadata endpoint instead (For list of sites with daily data) and filter on data_type. You'll get one row per data collection rather than one row per site
  - keep querys below MAX size..
  - document -Djava.net.useSystemProxies=true
  - USGS to do: /ogcapi/v0/collections/peaks and /stac/v0/collections/ratings

@@ -28,6 +28,11 @@ public class InstantaneousValue {
         return v;
     }
 
+    @Override
+    public String toString() {
+        return time + " = " + value;
+    }
+
     public InstantaneousValue() {
     }
 

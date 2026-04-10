@@ -4,3 +4,5 @@
 
 ::run one integration test method
 ::.\gradlew integrationTest --tests "ktarbet.usgs.waterdata.UsgsWaterDataApiTest.dailyData_userScenario"
+
+ ::.\gradlew  demo --info -PusgsDebug=true

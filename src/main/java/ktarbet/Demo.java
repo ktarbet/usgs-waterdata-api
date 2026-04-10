@@ -1,6 +1,8 @@
 package ktarbet;
 
 import ktarbet.usgs.waterdata.*;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 
 public class Demo {
 
@@ -8,7 +10,9 @@ public class Demo {
         // read metadata for a location
         String location_id = "USGS-13213000";
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
-        var PARI = TimeSeriesMetadata.filter(metadata, Parameter.DISCHARGE, Statistic.MEAN).get(0) ;
+        var PARI = TimeSeriesMetadata.filter(metadata)
+                .parameterCode(Parameter.DISCHARGE).statisticId(Statistic.MEAN)
+                .findFirst().orElseThrow();
 
         // Use TimeSeries to get metadata + data together
         System.out.println("Read Daily Mean Discharge, Boise River at Parma");
@@ -18,15 +22,14 @@ public class Demo {
         System.out.println("Station: " + dailyTS.getMonitoringLocationId());
         System.out.println("Units: " + dailyTS.getUnitOfMeasure());
         System.out.println("Parameter: " + dailyTS.getParameterName());
-        for (int i = 0; i < dailyTS.size() && i < 5; i++) {
-            DailyValue dv = dailyTS.values.get(i);
-            System.out.println("  " + dv.date + " = " + dv.value);
-        }
+        dailyTS.printToConsole(5);
 
         System.out.println("Read Continuous Water Temperature Data, Sacramento River at Freeport, CA");
         String location_id2 = "USGS-11447650";
         var metadata2 = UsgsWaterDataApi.getTimeSeriesMetadata(location_id2);
-        var tempMetas = TimeSeriesMetadata.filter(metadata2, Parameter.WATER_TEMPERATURE, Statistic.INSTANTANEOUS);
+        var tempMetas = TimeSeriesMetadata.filter(metadata2)
+                .parameterCode(Parameter.WATER_TEMPERATURE).statisticId(Statistic.INSTANTANEOUS)
+                .toList();
 
         for (var tempMeta : tempMetas) {
             TimeSeries<InstantaneousValue> continuousTS = UsgsWaterDataApi.getContinuousTimeSeries(tempMeta,
@@ -37,12 +40,23 @@ public class Demo {
             System.out.println("Description: " + tempMeta.webDescription);
             System.out.println("Units: " + continuousTS.getUnitOfMeasure());
             System.out.println("Parameter: " + continuousTS.getParameterName());
-            for (int i = 0; i < continuousTS.size() && i < 5; i++) {
-                InstantaneousValue iv = continuousTS.values.get(i);
-                System.out.println("  " + iv.time + " = " + iv.value);
-            }
+            continuousTS.printToConsole(5);
             System.out.println();
         }
 
+        // read a very specific time-series  (There are two temperature time-series at this location, so we have to be specific about which one we want)
+        var eastFender = TimeSeriesMetadata.filter(metadata2)
+           .parameterCode(Parameter.WATER_TEMPERATURE)
+           .statisticId(Statistic.INSTANTANEOUS)
+           .sublocation("BGC PROJECT")
+           .descriptionContains("East Fender").findFirst().orElseThrow();
+
+        System.out.println("Reading East Fender time-series... (current data)");
+        String end = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();
+        String start = Instant.now().minus(7, ChronoUnit.HOURS).truncatedTo(ChronoUnit.SECONDS).toString();
+        TimeSeries<InstantaneousValue> eastfenderTS = UsgsWaterDataApi.getContinuousTimeSeries(eastFender,
+                    start, end);
+        
+        eastfenderTS.printToConsole(5);
     }
 }

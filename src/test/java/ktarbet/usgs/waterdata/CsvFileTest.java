@@ -88,7 +88,7 @@ class CsvFileTest {
         List<TimeSeriesMetadata> all = new CsvFile(metaPath).mapRows(TimeSeriesMetadata::fromRow);
         assertEquals(7, all.size());
 
-        List<TimeSeriesMetadata> daily = TimeSeriesMetadata.filterDaily(all);
+        List<TimeSeriesMetadata> daily = TimeSeriesMetadata.filter(all).daily().toList();
         assertEquals(1, daily.size());
         TimeSeriesMetadata ts = daily.get(0);
         assertEquals("Discharge", ts.parameterName);
