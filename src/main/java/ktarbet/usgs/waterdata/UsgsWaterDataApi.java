@@ -81,6 +81,8 @@ public class UsgsWaterDataApi {
 
 
     private static List<DailyValue> fetchDailyValues(String timeSeriesId, String startDate, String endDate) throws Exception {
+        if (TestSite.isTestSeriesId(timeSeriesId))
+            return TestSite.generateDailyValues(startDate, endDate);
         String url = String.format(DAILY_URL_ID, timeSeriesId, startDate, endDate);
         String csv = WebUtility.getPage(url);
         if (csv == null || csv.isBlank()) return Collections.emptyList();
@@ -88,6 +90,8 @@ public class UsgsWaterDataApi {
     }
 
     private static List<InstantaneousValue> fetchContinuousValues(String timeSeriesId, String startDate, String endDate) throws Exception {
+        if (TestSite.isTestSeriesId(timeSeriesId))
+            return TestSite.generateContinuousValues(startDate, endDate);
         String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, startDate, endDate);
         String csv = WebUtility.getPage(url);
         if (csv == null || csv.isBlank()) return Collections.emptyList();
@@ -128,6 +132,8 @@ public class UsgsWaterDataApi {
     }
 
     public static List<TimeSeriesMetadata> getTimeSeriesMetadata(String monitoringLocationId) throws Exception {
+        if (TestSite.isTestSite(monitoringLocationId))
+            return TestSite.generateMetadata();
         String url = String.format(TIME_SERIES_METADATA_URL, monitoringLocationId);
         String csv = WebUtility.getPage(url);
         if (csv == null || csv.isBlank()) return Collections.emptyList();
@@ -162,6 +168,10 @@ public class UsgsWaterDataApi {
 
         int batchSize = 200; // found by trial and error , avoid 403 Forbidden from USGS API when too many IDs are included in a single request
         HashMap<String, List<TimeSeriesMetadata>> byLocation = new HashMap<>();
+        for (String loc : monitoringLocations) {
+            if (TestSite.isTestSite(loc))
+                byLocation.put(loc, TestSite.generateMetadata());
+        }
         for (int i = 0; i < monitoringLocations.length; i += batchSize) {
             String[] batch = Arrays.copyOfRange(monitoringLocations, i,
                     Math.min(i + batchSize, monitoringLocations.length));
