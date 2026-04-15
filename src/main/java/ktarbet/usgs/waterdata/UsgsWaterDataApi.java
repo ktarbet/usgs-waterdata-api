@@ -6,11 +6,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.logging.Logger;
 
 /**
  * Client for the USGS Water Data API ({@code api.waterdata.usgs.gov}).
- *
  * <a href="https://api.waterdata.usgs.gov/ogcapi/v0/openapi?f=html#/">OpenAPI Documentation</a>
  * 
  * <p>Provides methods to retrieve monitoring locations, daily time-series data,
@@ -25,7 +23,6 @@ import java.util.logging.Logger;
  */
 public class UsgsWaterDataApi {
 
-    private static final Logger logger = Logger.getLogger(UsgsWaterDataApi.class.getName());
     public static final double UNDEFINED_DOUBLE = -Float.MAX_VALUE;
 
     

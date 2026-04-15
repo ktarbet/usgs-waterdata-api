@@ -65,12 +65,18 @@ public class TimeSeriesFilter {
         return matchAny(units, ts -> ts.unitOfMeasure);
     }
 
-    // --- Text search (case-insensitive contains) ---
+    public TimeSeriesFilter webDescriptionContains(String text) {
+        String lower = text.toLowerCase();
+        return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
+    }
 
+    @Deprecated
     public TimeSeriesFilter descriptionContains(String text) {
         String lower = text.toLowerCase();
         return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
     }
+
+
 
     public TimeSeriesFilter sublocationContains(String text) {
         String lower = text.toLowerCase();
