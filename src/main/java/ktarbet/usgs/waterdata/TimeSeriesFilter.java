@@ -66,12 +66,18 @@ public class TimeSeriesFilter {
     }
 
     public TimeSeriesFilter webDescriptionContains(String text) {
+        if (text == null || text.isEmpty()) {
+            return this;
+        }
         String lower = text.toLowerCase();
         return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
     }
 
     @Deprecated
     public TimeSeriesFilter descriptionContains(String text) {
+        if (text == null || text.isEmpty()) {
+            return this;
+        }
         String lower = text.toLowerCase();
         return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
     }
@@ -79,6 +85,9 @@ public class TimeSeriesFilter {
 
 
     public TimeSeriesFilter sublocationContains(String text) {
+        if (text == null || text.isEmpty()) {
+            return this;
+        }
         String lower = text.toLowerCase();
         return and(ts -> ts.sublocationIdentifier != null && ts.sublocationIdentifier.toLowerCase().contains(lower));
     }
@@ -156,11 +165,20 @@ public class TimeSeriesFilter {
     }
 
     private TimeSeriesFilter matchAny(String[] values, FieldAccessor accessor) {
-        if (values.length == 1) {
-            String value = values[0];
+        if (values == null || values.length == 0) {
+            return this;
+        }
+        String[] cleaned = Arrays.stream(values)
+                .filter(v -> v != null && !v.isEmpty())
+                .toArray(String[]::new);
+        if (cleaned.length == 0) {
+            return this;
+        }
+        if (cleaned.length == 1) {
+            String value = cleaned[0];
             return and(ts -> value.equals(accessor.get(ts)));
         }
-        Set<String> set = new HashSet<>(Arrays.asList(values));
+        Set<String> set = new HashSet<>(Arrays.asList(cleaned));
         return and(ts -> set.contains(accessor.get(ts)));
     }
 }
