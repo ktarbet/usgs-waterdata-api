@@ -157,7 +157,7 @@ class TimeSeriesFilterTest {
         ts3.parameterCode = "00010";
 
         var results = TimeSeriesMetadata.filter(List.of(ts1, ts2, ts3))
-                .descriptionContains("fender").toList();
+                .webDescriptionContains("fender").toList();
         assertEquals(1, results.size());
         assertEquals("East Fender", results.get(0).webDescription);
     }

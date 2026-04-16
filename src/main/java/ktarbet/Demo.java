@@ -49,7 +49,7 @@ public class Demo {
            .parameterCode(Parameter.WATER_TEMPERATURE)
            .statisticId(Statistic.INSTANTANEOUS)
            .sublocation("BGC PROJECT")
-           .descriptionContains("East Fender").findFirst().orElseThrow();
+           .webDescriptionContains("East Fender").findFirst().orElseThrow();
 
         System.out.println("Reading East Fender time-series... (current data)");
         String end = Instant.now().truncatedTo(ChronoUnit.SECONDS).toString();

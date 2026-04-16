@@ -73,17 +73,6 @@ public class TimeSeriesFilter {
         return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
     }
 
-    @Deprecated
-    public TimeSeriesFilter descriptionContains(String text) {
-        if (text == null || text.isEmpty()) {
-            return this;
-        }
-        String lower = text.toLowerCase();
-        return and(ts -> ts.webDescription != null && ts.webDescription.toLowerCase().contains(lower));
-    }
-
-
-
     public TimeSeriesFilter sublocationContains(String text) {
         if (text == null || text.isEmpty()) {
             return this;
@@ -91,8 +80,6 @@ public class TimeSeriesFilter {
         String lower = text.toLowerCase();
         return and(ts -> ts.sublocationIdentifier != null && ts.sublocationIdentifier.toLowerCase().contains(lower));
     }
-
-    // --- Date filters ---
 
     /**
      * Keeps entries whose date range overlaps the given range.

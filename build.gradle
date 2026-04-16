@@ -88,7 +88,7 @@ publishing {
 
             pom {
                 name = 'USGS Water Data API Client'
-                description = 'Zero dependency Java client for the USGS Water Data API (https://github.com/ktarbet/usgs-waterdata-api)'
+                description = 'Zero dependency Java client for the USGS Water Data API - https://api.waterdata.usgs.gov/'
                 url = 'https://github.com/ktarbet/usgs-waterdata-api'
 
                 licenses {
