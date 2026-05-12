@@ -5,12 +5,12 @@ A Java library for retrieving hydrologic data (daily values, peaks, continous (1
 
 ```gradle
 // gradle
-implementation("io.github.ktarbet:usgs-waterdata-api:0.2.*")
+implementation("org.opendcs:usgs-waterdata-api:0.3.*")
 ```
 
 
 ```java
-// import ktarbet.usgs.waterdata.*;
+// import org.opendcs.usgs.waterdata.*;
         // read metadata for a location
         String location_id = "USGS-13213000";
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);

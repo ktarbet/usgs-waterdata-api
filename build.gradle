@@ -5,7 +5,7 @@ plugins {
     id 'io.github.opendcs.maven.maven-central-upload' version '0.1.2'
 }
 
-group = 'io.github.ktarbet'
+group = 'org.opendcs'
 version = findProperty('projVersion') ?: '99-SNAPSHOT'
 
 java {
@@ -44,7 +44,7 @@ jar {
 
 tasks.register('demo', JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
-    mainClass = 'ktarbet.Demo'
+    mainClass = 'org.opendcs.Demo'
     jvmArgs '-Djava.util.logging.config.file=' + sourceSets.main.output.resourcesDir + '/logging.properties'
     systemProperty 'usgs.debug', System.getProperty('usgs.debug', 'false')
 }
@@ -89,7 +89,7 @@ publishing {
             pom {
                 name = 'USGS Water Data API Client'
                 description = 'Zero dependency Java client for the USGS Water Data API - https://api.waterdata.usgs.gov/'
-                url = 'https://github.com/ktarbet/usgs-waterdata-api'
+                url = 'https://github.com/opendcs/usgs-waterdata-api'
 
                 licenses {
                     license {
@@ -99,14 +99,14 @@ publishing {
                 }
                 developers {
                     developer {
-                        id = 'ktarbet'
-                        name = 'Karl Tarbet'
+                        id = 'opendcs'
+                        name = 'Karl Tarbet and opendcs developers'
                     }
                 }
                 scm {
-                    connection = 'scm:git:git://github.com/ktarbet/usgs-waterdata-api.git'
-                    developerConnection = 'scm:git:ssh://git@github.com/ktarbet/usgs-waterdata-api.git'
-                    url = 'https://github.com/ktarbet/usgs-waterdata-api'
+                    connection = 'scm:git:git://github.com/opendcs/usgs-waterdata-api.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/opendcs/usgs-waterdata-api.git'
+                    url = 'https://github.com/opendcs/usgs-waterdata-api'
                 }
             }
         }

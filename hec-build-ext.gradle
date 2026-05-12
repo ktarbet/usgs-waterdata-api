@@ -2,7 +2,7 @@
 // used for development of HEE-DSSVue
 includeBuild("$gradle.ext.externalLibDir") {
     dependencySubstitution {
-        substitute(module("io.github.ktarbet:usgs-waterdata-api"))
+        substitute(module("org.opendcs:usgs-waterdata-api"))
                 .using(project(":"))
     }
 }
