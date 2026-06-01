@@ -97,55 +97,64 @@ public class UsgsWaterDataApi {
     }
 
     /**
-     * Fetches continuous values for a date range, paging in chunks when necessary. 
+     * Fetches continuous values for a date range, paging in chunks when necessary.
      */
     private static List<InstantaneousValue> fetchContinuousValues(String timeSeriesId, String startDate, String endDate) throws Exception {
         if (TestSite.isTestSeriesId(timeSeriesId))
             return TestSite.generateContinuousValues(startDate, endDate);
 
-        List<InstantaneousValue> all = new ArrayList<>();
         Instant rangeEnd = Instant.parse(normalizeToInstant(endDate));
         Instant chunkStart = Instant.parse(normalizeToInstant(startDate));
+
+        List<InstantaneousValue> all = new ArrayList<>();
         Instant lastSeen = null;
-        boolean continuation = false;
         while (chunkStart.isBefore(rangeEnd)) {
-            // Cap the request at the API's maximum time envelope.
             Instant windowEnd = chunkStart.plus(MAX_WINDOW_DAYS, ChronoUnit.DAYS);
             if (windowEnd.isAfter(rangeEnd)) windowEnd = rangeEnd;
 
-            String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, chunkStart.toString(), windowEnd.toString());
-            String csv = WebUtility.getPage(url);
-            List<InstantaneousValue> page = (csv == null || csv.isBlank())
-                    ? Collections.emptyList()
-                    : CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
-
-            for (int i = 0; i < page.size(); i++) {
-                InstantaneousValue iv = page.get(i);
-                // A continuation query is inclusive of its start, so its first point repeats
-                // the previous chunk's last point. Drop that one expected boundary duplicate.
-                if (continuation && i == 0 && iv.time.equals(lastSeen)) continue;
-                // Any other repeated time-stamp would break a database save. Keep the first
-                // value for that time, drop the rest, and warn so it can be investigated.
-                if (lastSeen != null && !iv.time.isAfter(lastSeen)) {
-                    logger.warning("Dropping duplicate time-stamp " + iv.time
-                            + " in continuous series " + timeSeriesId);
-                    continue;
-                }
-                all.add(iv);
-                lastSeen = iv.time;
-            }
-            continuation = true;
+            List<InstantaneousValue> page = fetchContinuousPage(timeSeriesId, chunkStart, windowEnd);
+            lastSeen = appendDeduplicated(all, page, lastSeen, timeSeriesId);
 
             if (page.size() >= PAGE_LIMIT && lastSeen != null && lastSeen.isAfter(chunkStart)) {
-                // Window was truncated at the page limit; resume from its last point.
+                // Response was truncated at the page limit; resume from its last point.
                 chunkStart = lastSeen;
                 logger.info("Continuous query returned a full page; fetching next chunk from " + chunkStart);
             } else {
-                // Window exhausted; advance to the next time window.
                 chunkStart = windowEnd;
             }
         }
-        return all.isEmpty() ? Collections.emptyList() : all;
+        return all;
+    }
+
+    /**
+     * Fetches a single page of continuous values for one time window.
+     */
+    private static List<InstantaneousValue> fetchContinuousPage(String timeSeriesId, Instant start, Instant end) throws Exception {
+        String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, start.toString(), end.toString());
+        String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
+    }
+
+    /**
+     * Appends a page's values to dest, skipping potental duplicates at the page boundary.
+     */
+    private static Instant appendDeduplicated(List<InstantaneousValue> dest, List<InstantaneousValue> page,
+                                              Instant lastSeen, String timeSeriesId) {
+        for (int i = 0; i < page.size(); i++) {
+            InstantaneousValue iv = page.get(i);
+            if (lastSeen != null && !iv.time.isAfter(lastSeen)) {
+                boolean expectedBoundaryDuplicate = i == 0 && iv.time.equals(lastSeen);
+                if (!expectedBoundaryDuplicate) {
+                    logger.warning("Dropping duplicate time-stamp " + iv.time
+                            + " in continuous series " + timeSeriesId);
+                }
+                continue;
+            }
+            dest.add(iv);
+            lastSeen = iv.time;
+        }
+        return lastSeen;
     }
 
     /**
