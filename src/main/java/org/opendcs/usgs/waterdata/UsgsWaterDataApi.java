@@ -1,6 +1,7 @@
 package org.opendcs.usgs.waterdata;
 
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -33,6 +34,7 @@ public class UsgsWaterDataApi {
      * Maximum number of responses the API returns per request
      */
     static final int PAGE_LIMIT = 50000;
+    static final long MAX_WINDOW_DAYS = 1000;
 
     static final String ROOT_URL                      = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/";
     static final String LOCATIONS_URL                 = ROOT_URL + "monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
@@ -102,17 +104,20 @@ public class UsgsWaterDataApi {
             return TestSite.generateContinuousValues(startDate, endDate);
 
         List<InstantaneousValue> all = new ArrayList<>();
-        String chunkStart = normalizeToInstant(startDate);
-        String normalizedEnd = normalizeToInstant(endDate);
+        Instant rangeEnd = Instant.parse(normalizeToInstant(endDate));
+        Instant chunkStart = Instant.parse(normalizeToInstant(startDate));
         Instant lastSeen = null;
         boolean continuation = false;
-        while (true) {
-            String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, chunkStart, normalizedEnd);
-            String csv = WebUtility.getPage(url);
-            if (csv == null || csv.isBlank()) break;
+        while (chunkStart.isBefore(rangeEnd)) {
+            // Cap the request at the API's maximum time envelope.
+            Instant windowEnd = chunkStart.plus(MAX_WINDOW_DAYS, ChronoUnit.DAYS);
+            if (windowEnd.isAfter(rangeEnd)) windowEnd = rangeEnd;
 
-            List<InstantaneousValue> page = CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
-            if (page.isEmpty()) break;
+            String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, chunkStart.toString(), windowEnd.toString());
+            String csv = WebUtility.getPage(url);
+            List<InstantaneousValue> page = (csv == null || csv.isBlank())
+                    ? Collections.emptyList()
+                    : CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
 
             for (int i = 0; i < page.size(); i++) {
                 InstantaneousValue iv = page.get(i);
@@ -129,12 +134,16 @@ public class UsgsWaterDataApi {
                 all.add(iv);
                 lastSeen = iv.time;
             }
-
-            if (page.size() < PAGE_LIMIT) break;
-            if (lastSeen == null || chunkStart.equals(lastSeen.toString())) break;
-            chunkStart = lastSeen.toString();
             continuation = true;
-            logger.info("Continuous query returned a full page; fetching next chunk from " + chunkStart);
+
+            if (page.size() >= PAGE_LIMIT && lastSeen != null && lastSeen.isAfter(chunkStart)) {
+                // Window was truncated at the page limit; resume from its last point.
+                chunkStart = lastSeen;
+                logger.info("Continuous query returned a full page; fetching next chunk from " + chunkStart);
+            } else {
+                // Window exhausted; advance to the next time window.
+                chunkStart = windowEnd;
+            }
         }
         return all.isEmpty() ? Collections.emptyList() : all;
     }
