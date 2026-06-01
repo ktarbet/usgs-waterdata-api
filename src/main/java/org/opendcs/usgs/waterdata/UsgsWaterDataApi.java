@@ -1,11 +1,13 @@
 package org.opendcs.usgs.waterdata;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.logging.Logger;
 
 /**
  * Client for the USGS Water Data API ({@code api.waterdata.usgs.gov}).
@@ -23,9 +25,15 @@ import java.util.Collections;
  */
 public class UsgsWaterDataApi {
 
+    private static final Logger logger = Logger.getLogger(UsgsWaterDataApi.class.getName());
+
     public static final double UNDEFINED_DOUBLE = -Float.MAX_VALUE;
 
-    
+    /**
+     * Maximum number of responses the API returns per request
+     */
+    static final int PAGE_LIMIT = 50000;
+
     static final String ROOT_URL                      = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/";
     static final String LOCATIONS_URL                 = ROOT_URL + "monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
     static final String TIME_SERIES_QUERY_ID          = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&time_series_id=%s&time=%s/%s";
@@ -86,13 +94,59 @@ public class UsgsWaterDataApi {
         return DailyValue.ensureContinuous(CsvFile.fromString(csv).mapRows(DailyValue::fromRow));
     }
 
+    /**
+     * Fetches continuous values for a date range, paging in chunks when necessary. 
+     */
     private static List<InstantaneousValue> fetchContinuousValues(String timeSeriesId, String startDate, String endDate) throws Exception {
         if (TestSite.isTestSeriesId(timeSeriesId))
             return TestSite.generateContinuousValues(startDate, endDate);
-        String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, startDate, endDate);
-        String csv = WebUtility.getPage(url);
-        if (csv == null || csv.isBlank()) return Collections.emptyList();
-        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
+
+        List<InstantaneousValue> all = new ArrayList<>();
+        String chunkStart = normalizeToInstant(startDate);
+        String normalizedEnd = normalizeToInstant(endDate);
+        Instant lastSeen = null;
+        boolean continuation = false;
+        while (true) {
+            String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, chunkStart, normalizedEnd);
+            String csv = WebUtility.getPage(url);
+            if (csv == null || csv.isBlank()) break;
+
+            List<InstantaneousValue> page = CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
+            if (page.isEmpty()) break;
+
+            for (int i = 0; i < page.size(); i++) {
+                InstantaneousValue iv = page.get(i);
+                // A continuation query is inclusive of its start, so its first point repeats
+                // the previous chunk's last point. Drop that one expected boundary duplicate.
+                if (continuation && i == 0 && iv.time.equals(lastSeen)) continue;
+                // Any other repeated time-stamp would break a database save. Keep the first
+                // value for that time, drop the rest, and warn so it can be investigated.
+                if (lastSeen != null && !iv.time.isAfter(lastSeen)) {
+                    logger.warning("Dropping duplicate time-stamp " + iv.time
+                            + " in continuous series " + timeSeriesId);
+                    continue;
+                }
+                all.add(iv);
+                lastSeen = iv.time;
+            }
+
+            if (page.size() < PAGE_LIMIT) break;
+            if (lastSeen == null || chunkStart.equals(lastSeen.toString())) break;
+            chunkStart = lastSeen.toString();
+            continuation = true;
+            logger.info("Continuous query returned a full page; fetching next chunk from " + chunkStart);
+        }
+        return all.isEmpty() ? Collections.emptyList() : all;
+    }
+
+    /**
+     * Normalizes a date or date-time string to a full RFC 3339 instant
+     *   example: 2026-06-01T00:00:00Z
+     */
+    static String normalizeToInstant(String dateOrDateTime) {
+        // A date-only value ("2026-06-01") has no time component; make it midnight UTC.
+        String instant = dateOrDateTime.contains("T") ? dateOrDateTime : dateOrDateTime + "T00:00:00Z";
+        return Instant.parse(instant).toString();
     }
 
     /**

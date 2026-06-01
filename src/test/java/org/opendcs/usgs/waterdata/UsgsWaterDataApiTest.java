@@ -222,6 +222,42 @@ class UsgsWaterDataApiTest {
     }
 
     /**
+     * Two years of continuous data at USGS-05529000 spans multiple pages, exercising
+     * chunked queries; guards against duplicate time-stamps at the chunk boundaries.
+     *
+     * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.getContinuousTimeSeries_twoYears_noDuplicateTimes" -PusgsDebug=true
+     */
+    @Test
+    @Tag("integration")
+    void getContinuousTimeSeries_twoYears_noDuplicateTimes() throws Exception {
+        String location_id = "USGS-05529000";
+        String t1 = "2024-06-01T00:00:00Z";
+        String t2 = "2026-06-01T00:00:00Z";
+
+        // All parameters, instantaneous statistic -> expect gage height + flow.
+        List<TimeSeriesMetadata> series = TimeSeriesMetadata.filter(UsgsWaterDataApi.getTimeSeriesMetadata(location_id))
+                .statisticId(Statistic.INSTANTANEOUS)
+                .hasDateRange()
+                .toList();
+
+        series.forEach(ts -> logger.info("Metadata: " + ts.parameterCode + " " + ts.parameterName
+                + " [" + ts.unitOfMeasure + "] " + ts.begin + " to " + ts.end));
+        assertEquals(2, series.size(), "Expected exactly two instantaneous time-series (gage height and flow)");
+
+        for (TimeSeriesMetadata ts : series) {
+            // getContinuousTimeSeries pages this 2-year range in chunks and drops any
+            // duplicate time-stamp, so the returned series should be larger than one page.
+            TimeSeries<InstantaneousValue> continuous = UsgsWaterDataApi.getContinuousTimeSeries(ts, t1, t2);
+            logger.info(ts.parameterName + ": " + continuous.size() + " values from "
+                    + continuous.get(0).time + " to " + continuous.get(continuous.size() - 1).time);
+            // More than one page's worth of points proves the query was chunked.
+            assertTrue(continuous.size() > 50000,
+                    "Expected more than 50,000 points (multiple chunks) for " + ts.parameterName
+                            + " but got " + continuous.size());
+        }
+    }
+
+    /**
      * Tests retrieving annual peak streamflow from the legacy NWIS RDB service.
      *
      * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.getAnnualPeaks_FoxRiver" -PusgsDebug=true
