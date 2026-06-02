@@ -10,8 +10,6 @@ import java.nio.file.Paths;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * HTTP utility for fetching web pages with caching.
@@ -29,8 +27,6 @@ class WebUtility {
     private static final int PAGE_CACHE_MAX_SIZE = 100;
     private static final ConcurrentHashMap<String, CacheEntry> PAGE_CACHE = new ConcurrentHashMap<>();
     private static boolean apiKeyLogged = false;
-    private static final Pattern COLLECTION_NAME_PATTERN =
-            Pattern.compile("/collections/(?<collection>[a-z][a-z0-9\\-]*)/items\\b");
 
     private static class CacheEntry {
         final String body;
@@ -46,19 +42,19 @@ class WebUtility {
         // Prevent instantiation
     }
 
-    public static String getPage(String url) throws Exception {
+    public static String getPage(String url, String debugName) throws Exception {
         logger.info("Requesting: " + url);
         HttpRequest request = buildRequest(url).GET().build();
-        return fetchPage(url, request);
+        return fetchPage(url, request, debugName);
     }
 
-    public static String postPage(String url, String contentType, String body, String cacheKey) throws Exception {
+    public static String postPage(String url, String contentType, String body, String cacheKey, String debugName) throws Exception {
         logger.info("POST: " + url);
         HttpRequest request = buildRequest(url)
                 .header("Content-Type", contentType)
                 .POST(HttpRequest.BodyPublishers.ofString(body))
                 .build();
-        return fetchPage(cacheKey, request);
+        return fetchPage(cacheKey, request, debugName);
     }
 
     static final String GITHUB_URL = "https://github.com/opendcs/usgs-waterdata-api";
@@ -90,7 +86,7 @@ class WebUtility {
         return key.substring(0, show) + "*".repeat(key.length() - show);
     }
 
-    static String fetchPage(String cacheKey, HttpRequest request) throws Exception {
+    static String fetchPage(String cacheKey, HttpRequest request, String debugName) throws Exception {
         long now = System.currentTimeMillis();
         CacheEntry cached = PAGE_CACHE.get(cacheKey);
         if (cached != null) {
@@ -136,8 +132,7 @@ class WebUtility {
 
         
         if (Boolean.getBoolean("usgs.debug")) {
-            String prefix = filenamePrefixFromUrl(response.uri().toString());
-            saveForDebugging(response, responseBody, prefix);
+            saveForDebugging(response, responseBody, debugName);
         }
 
         if (PAGE_CACHE.size() >= PAGE_CACHE_MAX_SIZE) {
@@ -147,15 +142,13 @@ class WebUtility {
         return responseBody;
     }
 
-    static String filenamePrefixFromUrl(String url) {
-        Matcher m = COLLECTION_NAME_PATTERN.matcher(url);
-        if (m.find()) {
-            return m.group("collection");
-        }
-        return "";
+    /** Collapses any run of non-filename-safe characters to a single underscore so the name is usable on disk. */
+    private static String sanitize(String name) {
+        return name.replaceAll("[^A-Za-z0-9._-]+", "_");
     }
 
-    private static void saveForDebugging(HttpResponse<String> response, String body, String filenamePrefix) {
+    private static void saveForDebugging(HttpResponse<String> response, String body, String debugName) {
+        String filenamePrefix = (debugName == null || debugName.isBlank()) ? "response" : sanitize(debugName);
         try {
             Optional<String> disposition = response.headers().firstValue("Content-Disposition");
             String filename = null;
@@ -168,17 +161,14 @@ class WebUtility {
                 }
             }
             if (filename == null || filename.isEmpty()) {
-                // Use the prefix (e.g. "continuous") as the base name
-                if (!filenamePrefix.isEmpty()) {
-                    filename = filenamePrefix;
-                } else {
-                    filename = "response";
-                }
-                // Determine extension from f= query parameter
+                filename = filenamePrefix;
+                // Determine extension from the f= query parameter, or the URL path for stac files
                 String query = response.uri().getQuery();
                 String ext = ".txt";
                 if (query != null && query.contains("f=csv")) {
                     ext = ".csv";
+                } else if (response.uri().getPath().endsWith(".rdb")) {
+                    ext = ".rdb";
                 }
                 filename += ext;
             }
@@ -195,7 +185,7 @@ class WebUtility {
                 }
                 int n = 1;
                 while (Files.exists(file)) {
-                    file = dir.resolve(name + n + ext);
+                    file = dir.resolve(name + "_" + n + ext);
                     n++;
                 }
             }

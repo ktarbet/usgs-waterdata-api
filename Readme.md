@@ -83,6 +83,11 @@ implementation("org.opendcs:usgs-waterdata-api:0.3.*")
         System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
         peakStage.printToConsole(5);
 
+        // Read the stage-discharge rating curve (raw RDB text)
+        System.out.println("\nRead Rating Curve, Snake River near Moran, WY");
+        String ratings = UsgsWaterDataApi.getRatings("USGS-13011000");
+        ratings.lines().limit(20).forEach(System.out::println);
+
 ```output.txt
 Read Daily Mean Discharge, Boise River at Parma
 Station: USGS-13213000
@@ -142,6 +147,28 @@ Peak Gage height (ft):
   1947-05-09T00:00:00Z = 6.75
   1948-05-29T00:00:00Z = 6.87
   1949-05-17T00:00:00Z = 6.15
+
+Read Rating Curve, Snake River near Moran, WY
+# //UNITED STATES GEOLOGICAL SURVEY       http://water.usgs.gov/
+# //NATIONAL WATER INFORMATION SYSTEM     http://water.usgs.gov/data.html
+# //DATA ARE PROVISIONAL AND SUBJECT TO CHANGE UNTIL PUBLISHED BY USGS
+# //RETRIEVED: 2026-05-08 22:20:02
+# //WARNING
+# //WARNING The stage-discharge rating provided in this file should be
+# //WARNING considered provisional and subject to change. Stage-discharge
+# //WARNING ratings change over time as the channel features that control
+# //WARNING the relation between stage and discharge vary. Users are
+# //WARNING cautioned to consider carefully the applicability of this
+# //WARNING rating before using it for decisions that concern personal or
+# //WARNING public safety or operational consequences.
+# //FILE TYPE="NWIS RATING" 
+# //DATABASE NUMBER=01 DESCRIPTION=" Standard data base for this site."
+# //STATION AGENCY="USGS " NUMBER="13011000       " TIME_ZONE="MST" DST_FLAG=Y
+# //STATION NAME="SNAKE RIVER NEAR MORAN, WY"
+# //LABEL="Discharge (ft^3/s)"
+# //PARAMETER CODE="00060"
+# //RATING SHIFTED="20260508222002 MST"
+# //RATING ID="1.0" TYPE="STGQ" NAME="stage-discharge" AGING=????
 ```
 
 
@@ -168,9 +195,4 @@ To save API responses to `~/usgs.waterdata/` for inspection, add the JVM flag:
 -Dusgs.debug=true
 ```
 
-Files are named from the response `Content-Disposition` header. Duplicate filenames get an incrementing suffix (e.g. `daily.csv`, `daily1.csv`, `daily2.csv`).
-
-
-# TODO
-
- - /ratings
+Files are named `<collection>_<id>` after the request, e.g. `daily_4993ed5a....csv`, `time-series-metadata_USGS-13037500.csv`, or `ratings_13011000.rdb`. Duplicate filenames get an incrementing suffix (e.g. `daily_....csv`, `daily_...1.csv`).

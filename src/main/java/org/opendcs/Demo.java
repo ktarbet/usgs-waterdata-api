@@ -78,5 +78,10 @@ public class Demo {
         peakFlow.printToConsole(5);
         System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
         peakStage.printToConsole(5);
+
+        // Read the stage-discharge rating curve (raw RDB text)
+        System.out.println("\nRead Rating Curve, Snake River near Moran, WY");
+        String ratings = UsgsWaterDataApi.getRatings("USGS-13011000");
+        ratings.lines().limit(20).forEach(System.out::println);
     }
 }

@@ -388,4 +388,20 @@ class UsgsWaterDataApiTest {
         }
     }
 
+    /**
+     * Retrieves the raw RDB stage-discharge rating for a site.
+     *
+     * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.getRatings" -PusgsDebug=true
+     */
+    @Test
+    @Tag("integration")
+    void getRatings() throws Exception {
+        String ratings = UsgsWaterDataApi.getRatings("USGS-13011000");
+        assertNotNull(ratings, "Expected rating text");
+        assertFalse(ratings.isBlank(), "Expected non-empty rating text");
+        // RDB files begin with comment lines prefixed by '#'
+        assertTrue(ratings.startsWith("#"), "Expected RDB content to start with a comment line");
+        logger.info("Rating text length: " + ratings.length());
+    }
+
 }
