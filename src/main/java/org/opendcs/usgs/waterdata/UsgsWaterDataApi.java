@@ -37,10 +37,14 @@ public class UsgsWaterDataApi {
     static final long MAX_WINDOW_DAYS = 1000;
 
     static final String ROOT_URL                      = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/";
+    static final String RATINGS_URL                   = "https://api.waterdata.usgs.gov/stac-files/ratings/USGS.%s.exsa.rdb";
     static final String LOCATIONS_URL                 = ROOT_URL + "monitoring-locations/items?f=csv&lang=en-US&limit=50000&offset=0&agency_code=USGS&state_code=%s&site_type_code=%s";
     static final String TIME_SERIES_QUERY_ID          = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&time_series_id=%s&time=%s/%s";
     static final String DAILY_URL_ID                  = ROOT_URL + "daily/" + TIME_SERIES_QUERY_ID;
     static final String CONTINUOUS_URL_ID             = ROOT_URL + "continuous/" + TIME_SERIES_QUERY_ID;
+    static final String PEAKS_QUERY                    = "peaks/items?f=csv&lang=en-US&limit=50000&properties=value,time,time_of_day&skipGeometry=true&sortby=time&offset=0&time_series_id=%s";
+    static final String PEAKS_URL                      = ROOT_URL + PEAKS_QUERY;
+    static final String PEAKS_URL_RANGE               = ROOT_URL + PEAKS_QUERY + "&time=%s/%s";
     static final String TIME_SERIES_METADATA_PROPERTIES = "id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id";
     static final String TIME_SERIES_METADATA_URL      = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0&monitoring_location_id=%s";
     static final String TIME_SERIES_METADATA_POST_URL = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0";
@@ -87,20 +91,33 @@ public class UsgsWaterDataApi {
     }
 
 
-    private static List<DailyValue> fetchDailyValues(String timeSeriesId, String startDate, String endDate) throws Exception {
-        if (TestSite.isTestSeriesId(timeSeriesId))
+    private static List<DailyValue> fetchDailyValues(TimeSeriesMetadata metadata, String startDate, String endDate) throws Exception {
+        if (TestSite.isTestSeriesId(metadata.id))
             return TestSite.generateDailyValues(startDate, endDate);
-        String url = String.format(DAILY_URL_ID, timeSeriesId, startDate, endDate);
-        String csv = WebUtility.getPage(url);
+        String url = String.format(DAILY_URL_ID, metadata.id, startDate, endDate);
+        String csv = WebUtility.getPage(url, debugName("daily", metadata));
         if (csv == null || csv.isBlank()) return Collections.emptyList();
         return DailyValue.ensureContinuous(CsvFile.fromString(csv).mapRows(DailyValue::fromRow));
+    }
+
+    /** Builds a readable debug filename like {@code continuous_USGS-11447650_Temperature_water_Instantaneous_BGC_PROJECT}. */
+    private static String debugName(String collection, TimeSeriesMetadata m) {
+        StringBuilder name = new StringBuilder(collection).append("_").append(m.monitoringLocationId);
+        appendIfPresent(name, m.parameterName);
+        appendIfPresent(name, m.computationIdentifier);
+        appendIfPresent(name, m.sublocationIdentifier);
+        return name.toString();
+    }
+
+    private static void appendIfPresent(StringBuilder name, String value) {
+        if (value != null && !value.isEmpty()) name.append("_").append(value);
     }
 
     /**
      * Fetches continuous values for a date range, paging in chunks when necessary.
      */
-    private static List<InstantaneousValue> fetchContinuousValues(String timeSeriesId, String startDate, String endDate) throws Exception {
-        if (TestSite.isTestSeriesId(timeSeriesId))
+    private static List<InstantaneousValue> fetchContinuousValues(TimeSeriesMetadata metadata, String startDate, String endDate) throws Exception {
+        if (TestSite.isTestSeriesId(metadata.id))
             return TestSite.generateContinuousValues(startDate, endDate);
 
         Instant rangeEnd = Instant.parse(normalizeToInstant(endDate));
@@ -112,8 +129,8 @@ public class UsgsWaterDataApi {
             Instant windowEnd = chunkStart.plus(MAX_WINDOW_DAYS, ChronoUnit.DAYS);
             if (windowEnd.isAfter(rangeEnd)) windowEnd = rangeEnd;
 
-            List<InstantaneousValue> page = fetchContinuousPage(timeSeriesId, chunkStart, windowEnd);
-            lastSeen = appendDeduplicated(all, page, lastSeen, timeSeriesId);
+            List<InstantaneousValue> page = fetchContinuousPage(metadata, chunkStart, windowEnd);
+            lastSeen = appendDeduplicated(all, page, lastSeen, metadata.id);
 
             if (page.size() >= PAGE_LIMIT && lastSeen != null && lastSeen.isAfter(chunkStart)) {
                 // Response was truncated at the page limit; resume from its last point.
@@ -129,9 +146,9 @@ public class UsgsWaterDataApi {
     /**
      * Fetches a single page of continuous values for one time window.
      */
-    private static List<InstantaneousValue> fetchContinuousPage(String timeSeriesId, Instant start, Instant end) throws Exception {
-        String url = String.format(CONTINUOUS_URL_ID, timeSeriesId, start.toString(), end.toString());
-        String csv = WebUtility.getPage(url);
+    private static List<InstantaneousValue> fetchContinuousPage(TimeSeriesMetadata metadata, Instant start, Instant end) throws Exception {
+        String url = String.format(CONTINUOUS_URL_ID, metadata.id, start.toString(), end.toString());
+        String csv = WebUtility.getPage(url, debugName("continuous", metadata));
         if (csv == null || csv.isBlank()) return Collections.emptyList();
         return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromRow);
     }
@@ -177,7 +194,7 @@ public class UsgsWaterDataApi {
      */
     public static TimeSeries<DailyValue> getDailyTimeSeries(TimeSeriesMetadata metadata,
                                                              String startDate, String endDate) throws Exception {
-        return new TimeSeries<>(metadata, fetchDailyValues(metadata.id, startDate, endDate));
+        return new TimeSeries<>(metadata, fetchDailyValues(metadata, startDate, endDate));
     }
 
     /**
@@ -190,12 +207,12 @@ public class UsgsWaterDataApi {
      */
     public static TimeSeries<InstantaneousValue> getContinuousTimeSeries(TimeSeriesMetadata metadata,
                                                                           String startDate, String endDate) throws Exception {
-        return new TimeSeries<>(metadata, fetchContinuousValues(metadata.id, startDate, endDate));
+        return new TimeSeries<>(metadata, fetchContinuousValues(metadata, startDate, endDate));
     }
 
     public static List<MonitoringLocation> getLocations(String stateCode, String siteTypeCode) throws Exception {
         String url = String.format(LOCATIONS_URL, stateCode, siteTypeCode);
-        String csv = WebUtility.getPage(url);
+        String csv = WebUtility.getPage(url, "monitoring-locations");
         if (csv == null || csv.isBlank()) return Collections.emptyList();
         return CsvFile.fromString(csv).mapRows(MonitoringLocation::fromRow);
     }
@@ -204,7 +221,7 @@ public class UsgsWaterDataApi {
         if (TestSite.isTestSite(monitoringLocationId))
             return TestSite.generateMetadata();
         String url = String.format(TIME_SERIES_METADATA_URL, monitoringLocationId);
-        String csv = WebUtility.getPage(url);
+        String csv = WebUtility.getPage(url, "time-series-metadata_" + monitoringLocationId);
         if (csv == null || csv.isBlank()) return Collections.emptyList();
         return CsvFile.fromString(csv).mapRows(TimeSeriesMetadata::fromRow);
     }
@@ -212,7 +229,7 @@ public class UsgsWaterDataApi {
     public static String postPage(String url, String propertyName, String[] items) throws Exception {
         String json = buildCqlInFilter(propertyName, items);
         String cacheKey = url + "|" + propertyName + "|" + String.join(",", items);
-        return WebUtility.postPage(url, "application/query-cql-json", json, cacheKey);
+        return WebUtility.postPage(url, "application/query-cql-json", json, cacheKey, "time-series-metadata");
     }
 
     private static String buildCqlInFilter(String propertyName, String[] items) {
@@ -253,21 +270,57 @@ public class UsgsWaterDataApi {
     }
 
     /**
-     * Retrieves annual peak streamflow and gage height from the legacy NWIS peak-flow service.
-     * @see PeakFlowService
+     * Retrieves annual peaks for the time series identified by the given metadata.
+     * @see #getAnnualPeaks(TimeSeriesMetadata, String, String)
      */
-    public static List<TimeSeries<InstantaneousValue>> getAnnualPeaks(
-            List<TimeSeriesMetadata> siteMetadata) throws Exception {
-        return PeakFlowService.getAnnualPeaks(siteMetadata);
+    public static TimeSeries<InstantaneousValue> getAnnualPeaks(TimeSeriesMetadata metadata) throws Exception {
+        return getAnnualPeaks(metadata, null, null);
     }
 
     /**
-     * Retrieves annual peak streamflow and gage height within a date range.
-     * @see PeakFlowService
+     * Retrieves annual peaks within a date range for the time series identified by the given metadata.
+     *
+     * @param metadata identifies the peak time series (computationIdentifier "Max At Event Time")
+     * @param startDate start of date range (yyyy-MM-dd), or null for no lower bound
+     * @param endDate   end of date range (yyyy-MM-dd), or null for no upper bound
      */
-    public static List<TimeSeries<InstantaneousValue>> getAnnualPeaks(
-            List<TimeSeriesMetadata> siteMetadata, String startDate, String endDate) throws Exception {
-        return PeakFlowService.getAnnualPeaks(siteMetadata, startDate, endDate);
+    public static TimeSeries<InstantaneousValue> getAnnualPeaks(TimeSeriesMetadata metadata,
+                                                                String startDate, String endDate) throws Exception {
+        return new TimeSeries<>(metadata, fetchPeaks(metadata, startDate, endDate));
+    }
+
+    /**
+     * Fetches annual peaks for one time series from the peaks collection.
+     */
+    private static List<InstantaneousValue> fetchPeaks(TimeSeriesMetadata metadata,
+                                                       String startDate, String endDate) throws Exception {
+        String url;
+        if (startDate != null && endDate != null) {
+            url = String.format(PEAKS_URL_RANGE, metadata.id, startDate, endDate);
+        } else {
+            url = String.format(PEAKS_URL, metadata.id);
+        }
+        String csv = WebUtility.getPage(url, debugName("peaks", metadata));
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromPeakRow);
+    }
+
+    /**
+     * Retrieves the expanded, shift-adjusted (exsa) stage-discharge rating for a site
+     * as raw RDB text.
+     * @param siteId site number ("13011000") or monitoring-location id ("USGS-13011000")
+     */
+    public static String getRatings(String siteId) throws Exception {
+        String siteNo = siteNumber(siteId);
+        String url = String.format(RATINGS_URL, siteNo);
+        return WebUtility.getPage(url, "ratings_" + siteNo);
+    }
+
+    /**
+     * Extracts the bare USGS site number from a "USGS-" or "USGS." prefixed id.
+     */
+    private static String siteNumber(String siteId) {
+        return siteId.replaceFirst("(?i)^USGS[-.]", "");
     }
 
 }

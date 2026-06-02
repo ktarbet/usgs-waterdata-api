@@ -1,7 +1,11 @@
 package org.opendcs.usgs.waterdata;
 
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 public class InstantaneousValue {
 
     public Instant time;
@@ -23,9 +27,31 @@ public class InstantaneousValue {
 
     static InstantaneousValue fromRow(DataTable table, int row) {
         InstantaneousValue v = new InstantaneousValue();
-        v.time = parse(table.get(row, "time")); 
+        v.time = parse(table.get(row, "time"));
         v.value = table.getDouble(row, "value", UsgsWaterDataApi.UNDEFINED_DOUBLE);
         return v;
+    }
+
+    /**
+     * Builds a value from a peaks-collection row, combining time and time_of_day.
+     */
+    static InstantaneousValue fromPeakRow(DataTable table, int row) {
+        InstantaneousValue v = new InstantaneousValue();
+        v.time = parsePeakTime(table.get(row, "time"), table.get(row, "time_of_day"));
+        v.value = table.getDouble(row, "value", UsgsWaterDataApi.UNDEFINED_DOUBLE);
+        return v;
+    }
+
+    static Instant parsePeakTime(String dateStr, String timeStr) {
+        LocalDate date = LocalDate.parse(dateStr);
+        if (timeStr != null && !timeStr.isBlank()) {
+            try {
+                return date.atTime(LocalTime.parse(timeStr.trim())).toInstant(ZoneOffset.UTC);
+            } catch (DateTimeParseException e) {
+                // fall through to date-only
+            }
+        }
+        return date.atStartOfDay().toInstant(ZoneOffset.UTC);
     }
 
     @Override

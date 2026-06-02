@@ -58,5 +58,30 @@ public class Demo {
                     start, end);
         
         eastfenderTS.printToConsole(5);
+
+        // Read annual peak flow and stage (one value per water year)
+        System.out.println("\nRead Annual Peaks, Boise River near Featherville");
+        var peakMetadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-13186000");
+
+        // Peaks metadata is marked with computationIdentifier "Max At Event Time"
+        var flowMeta = TimeSeriesMetadata.filter(peakMetadata)
+                .parameterCode(Parameter.DISCHARGE).computation("Max At Event Time")
+                .findFirst().orElseThrow();
+        var stageMeta = TimeSeriesMetadata.filter(peakMetadata)
+                .parameterCode(Parameter.STAGE).computation("Max At Event Time")
+                .findFirst().orElseThrow();
+
+        TimeSeries<InstantaneousValue> peakFlow = UsgsWaterDataApi.getAnnualPeaks(flowMeta);
+        TimeSeries<InstantaneousValue> peakStage = UsgsWaterDataApi.getAnnualPeaks(stageMeta);
+
+        System.out.println("Peak " + peakFlow.getParameterName() + " (" + peakFlow.getUnitOfMeasure() + "):");
+        peakFlow.printToConsole(5);
+        System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
+        peakStage.printToConsole(5);
+
+        // Read the stage-discharge rating curve (raw RDB text)
+        System.out.println("\nRead Rating Curve, Snake River near Moran, WY");
+        String ratings = UsgsWaterDataApi.getRatings("USGS-13011000");
+        ratings.lines().limit(20).forEach(System.out::println);
     }
 }
