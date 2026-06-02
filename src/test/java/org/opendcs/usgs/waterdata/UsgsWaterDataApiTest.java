@@ -257,6 +257,36 @@ class UsgsWaterDataApiTest {
         }
     }
 
+    /**
+     * Seven years of 5-minute continuous data at USGS-01477800 (Shellpot Creek), exercising
+     * chunked queries at a higher resolution than the 15-minute case. The 1999-2006 range far
+     * exceeds the API's 1100-day limit, so it must be chunked by time.
+     *
+     * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.getContinuousTimeSeries_sevenYears_fiveMinute" -PusgsDebug=true
+     */
+    @Test
+    @Tag("integration")
+    void getContinuousTimeSeries_sevenYears_fiveMinute() throws Exception {
+        String location_id = "USGS-01477800";
+        String t1 = "1999-06-01T00:00:00Z";
+        String t2 = "2006-06-01T00:00:00Z";
+
+        TimeSeriesMetadata discharge = TimeSeriesMetadata.filter(UsgsWaterDataApi.getTimeSeriesMetadata(location_id))
+                .parameterCode(Parameter.DISCHARGE).statisticId(Statistic.INSTANTANEOUS)
+                .hasDateRange()
+                .findFirst().orElseThrow(() -> new AssertionError("Expected an instantaneous discharge series"));
+
+        logger.info("Metadata: " + discharge.parameterCode + " " + discharge.parameterName
+                + " [" + discharge.unitOfMeasure + "] " + discharge.begin + " to " + discharge.end);
+
+        TimeSeries<InstantaneousValue> continuous = UsgsWaterDataApi.getContinuousTimeSeries(discharge, t1, t2);
+        logger.info(discharge.parameterName + ": " + continuous.size() + " values from "
+                + continuous.get(0).time + " to " + continuous.get(continuous.size() - 1).time);
+
+        // Seven years of 5-minute discharge, chunked by time across the API's 1100-day limit.
+        assertEquals(644478, continuous.size(), "Expected 644,478 five-minute discharge values for 1999-2006");
+    }
+
     /** Finds the peak time series (computationIdentifier "Max At Event Time") for a parameter. */
     private TimeSeriesMetadata peakSeries(List<TimeSeriesMetadata> metadata, String parameterCode) {
         return TimeSeriesMetadata.filter(metadata)
