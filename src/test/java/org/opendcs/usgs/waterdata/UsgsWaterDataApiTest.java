@@ -257,22 +257,26 @@ class UsgsWaterDataApiTest {
         }
     }
 
+    /** Finds the peak time series (computationIdentifier "Max At Event Time") for a parameter. */
+    private TimeSeriesMetadata peakSeries(List<TimeSeriesMetadata> metadata, String parameterCode) {
+        return TimeSeriesMetadata.filter(metadata)
+                .parameterCode(parameterCode).computation("Max At Event Time")
+                .findFirst().orElseThrow(() -> new AssertionError("No peak series for parameter " + parameterCode));
+    }
+
     /**
-     * Tests retrieving annual peak streamflow from the legacy NWIS RDB service.
+     * Tests retrieving annual peak streamflow and stage for the Fox River.
      *
      * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.getAnnualPeaks_FoxRiver" -PusgsDebug=true
      */
     @Test
     @Tag("integration")
     void getAnnualPeaks_FoxRiver() throws Exception {
-        // Fox River at Wayland, MO â€” site 05495000 (same site from the RDB example)
+        // Fox River at Wayland, MO - site 05495000
         var siteMetadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-05495000");
 
-        List<TimeSeries<InstantaneousValue>> peakSeries = UsgsWaterDataApi.getAnnualPeaks(siteMetadata);
-        assertEquals(2, peakSeries.size(), "Expected discharge and stage series");
-
-        TimeSeries<InstantaneousValue> flowPeaks = peakSeries.get(0);
-        TimeSeries<InstantaneousValue> stagePeaks = peakSeries.get(1);
+        TimeSeries<InstantaneousValue> flowPeaks = UsgsWaterDataApi.getAnnualPeaks(peakSeries(siteMetadata, Parameter.DISCHARGE));
+        TimeSeries<InstantaneousValue> stagePeaks = UsgsWaterDataApi.getAnnualPeaks(peakSeries(siteMetadata, Parameter.STAGE));
 
         assertFalse(flowPeaks.isEmpty(), "Expected annual peak flow values");
         assertFalse(stagePeaks.isEmpty(), "Expected annual peak stage values");
@@ -280,14 +284,12 @@ class UsgsWaterDataApiTest {
 
         assertEquals(Parameter.DISCHARGE, flowPeaks.metadata.parameterCode);
         assertEquals(Parameter.STAGE, stagePeaks.metadata.parameterCode);
-        assertEquals("Water Year", flowPeaks.metadata.computationPeriodIdentifier);
         assertEquals("Max At Event Time", flowPeaks.metadata.computationIdentifier);
 
-        // Verify units come from metadata, not hardcoded
+        // Units come from metadata, not hardcoded
         assertNotNull(flowPeaks.metadata.unitOfMeasure, "Flow units should come from metadata");
         assertNotNull(stagePeaks.metadata.unitOfMeasure, "Stage units should come from metadata");
-        logger.info("Flow units: " + flowPeaks.metadata.unitOfMeasure);
-        logger.info("Stage units: " + stagePeaks.metadata.unitOfMeasure);
+        logger.info("Flow units: " + flowPeaks.getUnitOfMeasure() + ", Stage units: " + stagePeaks.getUnitOfMeasure());
 
         // First peak should be from 1922
         InstantaneousValue first = flowPeaks.get(0);
@@ -295,9 +297,7 @@ class UsgsWaterDataApiTest {
         assertEquals(1922, LocalDate.ofInstant(first.time, java.time.ZoneOffset.UTC).getYear());
 
         for (int i = 0; i < Math.min(5, flowPeaks.size()); i++) {
-            InstantaneousValue flow = flowPeaks.get(i);
-            InstantaneousValue stage = stagePeaks.get(i);
-            logger.info("  " + flow.time + "  flow=" + flow.value + "  stage=" + stage.value);
+            logger.info("  " + flowPeaks.get(i).time + "  flow=" + flowPeaks.get(i).value);
         }
     }
 
@@ -306,17 +306,55 @@ class UsgsWaterDataApiTest {
     void getAnnualPeaks_withDateRange() throws Exception {
         var siteMetadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-05495000");
 
-        List<TimeSeries<InstantaneousValue>> peakSeries =
-                UsgsWaterDataApi.getAnnualPeaks(siteMetadata, "2000-01-01", "2010-12-31");
-        assertFalse(peakSeries.isEmpty());
-
-        TimeSeries<InstantaneousValue> flowPeaks = peakSeries.get(0);
+        TimeSeries<InstantaneousValue> flowPeaks = UsgsWaterDataApi.getAnnualPeaks(
+                peakSeries(siteMetadata, Parameter.DISCHARGE), "2000-01-01", "2010-12-31");
         assertFalse(flowPeaks.isEmpty(), "Expected peaks in 2000-2010 range");
         logger.info("Peaks in range: " + flowPeaks.size());
 
         for (InstantaneousValue iv : flowPeaks.values) {
             int year = LocalDate.ofInstant(iv.time, java.time.ZoneOffset.UTC).getYear();
             assertTrue(year >= 2000 && year <= 2011, "Peak year " + year + " outside expected range");
+        }
+    }
+
+    /**
+     * Demonstrates the metadata-to-peaks scenario: pull site metadata, filter precisely to the
+     * peak flow and peak stage time series, then query each one.
+     *
+     * ./gradlew integrationTest --tests "org.opendcs.usgs.waterdata.UsgsWaterDataApiTest.annualPeaks_metadataScenario" -PusgsDebug=true
+     */
+    @Test
+    @Tag("integration")
+    void annualPeaks_metadataScenario() throws Exception {
+        String locationId = "USGS-13186000"; // Boise River near Featherville
+
+        List<TimeSeriesMetadata> metadata = UsgsWaterDataApi.getTimeSeriesMetadata(locationId);
+        assertFalse(metadata.isEmpty(), "Expected time-series metadata for " + locationId);
+        logger.info(locationId + " metadata count: " + metadata.size());
+
+        TimeSeriesMetadata flowMeta = TimeSeriesMetadata.filter(metadata)
+                .parameterCode(Parameter.DISCHARGE).computation("Max At Event Time")
+                .findFirst().orElseThrow(() -> new AssertionError("Expected a peak discharge series"));
+        TimeSeriesMetadata stageMeta = TimeSeriesMetadata.filter(metadata)
+                .parameterCode(Parameter.STAGE).computation("Max At Event Time")
+                .findFirst().orElseThrow(() -> new AssertionError("Expected a peak stage series"));
+
+        assertEquals("Water Year", flowMeta.computationPeriodIdentifier);
+        assertEquals("ft^3/s", flowMeta.unitOfMeasure);
+        assertEquals("ft", stageMeta.unitOfMeasure);
+
+        TimeSeries<InstantaneousValue> flowPeaks = UsgsWaterDataApi.getAnnualPeaks(flowMeta);
+        TimeSeries<InstantaneousValue> stagePeaks = UsgsWaterDataApi.getAnnualPeaks(stageMeta);
+
+        assertEquals(Parameter.DISCHARGE, flowPeaks.metadata.parameterCode);
+        assertEquals(Parameter.STAGE, stagePeaks.metadata.parameterCode);
+        assertFalse(flowPeaks.isEmpty(), "Expected annual peak flow values");
+        assertFalse(stagePeaks.isEmpty(), "Expected annual peak stage values");
+
+        logger.info("Flow peaks: " + flowPeaks.size() + " [" + flowPeaks.getUnitOfMeasure() + "]");
+        logger.info("Stage peaks: " + stagePeaks.size() + " [" + stagePeaks.getUnitOfMeasure() + "]");
+        for (int i = 0; i < Math.min(5, flowPeaks.size()); i++) {
+            logger.info("  " + flowPeaks.get(i).time + "  flow=" + flowPeaks.get(i).value);
         }
     }
 

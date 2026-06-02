@@ -41,6 +41,9 @@ public class UsgsWaterDataApi {
     static final String TIME_SERIES_QUERY_ID          = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&time_series_id=%s&time=%s/%s";
     static final String DAILY_URL_ID                  = ROOT_URL + "daily/" + TIME_SERIES_QUERY_ID;
     static final String CONTINUOUS_URL_ID             = ROOT_URL + "continuous/" + TIME_SERIES_QUERY_ID;
+    static final String PEAKS_QUERY                    = "peaks/items?f=csv&lang=en-US&limit=50000&properties=value,time,time_of_day&skipGeometry=true&sortby=time&offset=0&time_series_id=%s";
+    static final String PEAKS_URL                      = ROOT_URL + PEAKS_QUERY;
+    static final String PEAKS_URL_RANGE               = ROOT_URL + PEAKS_QUERY + "&time=%s/%s";
     static final String TIME_SERIES_METADATA_PROPERTIES = "id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id";
     static final String TIME_SERIES_METADATA_URL      = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0&monitoring_location_id=%s";
     static final String TIME_SERIES_METADATA_POST_URL = ROOT_URL + "time-series-metadata/items?f=csv&lang=en-US&limit=50000&properties=" + TIME_SERIES_METADATA_PROPERTIES + "&skipGeometry=false&offset=0";
@@ -253,21 +256,39 @@ public class UsgsWaterDataApi {
     }
 
     /**
-     * Retrieves annual peak streamflow and gage height from the legacy NWIS peak-flow service.
-     * @see PeakFlowService
+     * Retrieves annual peaks for the time series identified by the given metadata.
+     * @see #getAnnualPeaks(TimeSeriesMetadata, String, String)
      */
-    public static List<TimeSeries<InstantaneousValue>> getAnnualPeaks(
-            List<TimeSeriesMetadata> siteMetadata) throws Exception {
-        return PeakFlowService.getAnnualPeaks(siteMetadata);
+    public static TimeSeries<InstantaneousValue> getAnnualPeaks(TimeSeriesMetadata metadata) throws Exception {
+        return getAnnualPeaks(metadata, null, null);
     }
 
     /**
-     * Retrieves annual peak streamflow and gage height within a date range.
-     * @see PeakFlowService
+     * Retrieves annual peaks within a date range for the time series identified by the given metadata.
+     *
+     * @param metadata identifies the peak time series (computationIdentifier "Max At Event Time")
+     * @param startDate start of date range (yyyy-MM-dd), or null for no lower bound
+     * @param endDate   end of date range (yyyy-MM-dd), or null for no upper bound
      */
-    public static List<TimeSeries<InstantaneousValue>> getAnnualPeaks(
-            List<TimeSeriesMetadata> siteMetadata, String startDate, String endDate) throws Exception {
-        return PeakFlowService.getAnnualPeaks(siteMetadata, startDate, endDate);
+    public static TimeSeries<InstantaneousValue> getAnnualPeaks(TimeSeriesMetadata metadata,
+                                                                String startDate, String endDate) throws Exception {
+        return new TimeSeries<>(metadata, fetchPeaks(metadata.id, startDate, endDate));
+    }
+
+    /**
+     * Fetches annual peaks for one time series from the peaks collection.
+     */
+    private static List<InstantaneousValue> fetchPeaks(String timeSeriesId,
+                                                       String startDate, String endDate) throws Exception {
+        String url;
+        if (startDate != null && endDate != null) {
+            url = String.format(PEAKS_URL_RANGE, timeSeriesId, startDate, endDate);
+        } else {
+            url = String.format(PEAKS_URL, timeSeriesId);
+        }
+        String csv = WebUtility.getPage(url);
+        if (csv == null || csv.isBlank()) return Collections.emptyList();
+        return CsvFile.fromString(csv).mapRows(InstantaneousValue::fromPeakRow);
     }
 
 }

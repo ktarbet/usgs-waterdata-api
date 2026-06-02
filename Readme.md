@@ -1,6 +1,6 @@
 # usgs-water-api
 
-A Java library for retrieving hydrologic data (daily values, peaks, continous (15-minute),  time-series metadata, monitoring locations) from the USGS Water Data API. 
+A Java library for retrieving hydrologic data (daily values, peaks, continous (~15-minute),  time-series metadata, monitoring locations) from the USGS Water Data API. 
 
 
 ```gradle
@@ -63,6 +63,26 @@ implementation("org.opendcs:usgs-waterdata-api:0.3.*")
         
         eastfenderTS.printToConsole(5);
 
+        // Read annual peak flow and stage (one value per water year)
+        System.out.println("\nRead Annual Peaks, Boise River near Featherville");
+        var peakMetadata = UsgsWaterDataApi.getTimeSeriesMetadata("USGS-13186000");
+
+        // Peaks metadata is marked with computationIdentifier "Max At Event Time"
+        var flowMeta = TimeSeriesMetadata.filter(peakMetadata)
+                .parameterCode(Parameter.DISCHARGE).computation("Max At Event Time")
+                .findFirst().orElseThrow();
+        var stageMeta = TimeSeriesMetadata.filter(peakMetadata)
+                .parameterCode(Parameter.STAGE).computation("Max At Event Time")
+                .findFirst().orElseThrow();
+
+        TimeSeries<InstantaneousValue> peakFlow = UsgsWaterDataApi.getAnnualPeaks(flowMeta);
+        TimeSeries<InstantaneousValue> peakStage = UsgsWaterDataApi.getAnnualPeaks(stageMeta);
+
+        System.out.println("Peak " + peakFlow.getParameterName() + " (" + peakFlow.getUnitOfMeasure() + "):");
+        peakFlow.printToConsole(5);
+        System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
+        peakStage.printToConsole(5);
+
 ```output.txt
 Read Daily Mean Discharge, Boise River at Parma
 Station: USGS-13213000
@@ -108,6 +128,20 @@ Reading East Fender time-series... (current data)
   2026-04-10T15:15:00Z = 19.0
   2026-04-10T15:30:00Z = 19.0
   2026-04-10T15:45:00Z = 19.0
+
+Read Annual Peaks, Boise River near Featherville
+Peak Discharge (ft^3/s):
+  1945-05-05T00:00:00Z = 2930.0
+  1946-04-27T00:00:00Z = 4210.0
+  1947-05-09T00:00:00Z = 4300.0
+  1948-05-29T00:00:00Z = 4750.0
+  1949-05-17T00:00:00Z = 3880.0
+Peak Gage height (ft):
+  1945-05-05T00:00:00Z = 5.43
+  1946-04-27T00:00:00Z = 6.66
+  1947-05-09T00:00:00Z = 6.75
+  1948-05-29T00:00:00Z = 6.87
+  1949-05-17T00:00:00Z = 6.15
 ```
 
 
@@ -139,91 +173,4 @@ Files are named from the response `Content-Disposition` header. Duplicate filena
 
 # TODO
 
- - Allow user to specify what paramters they want such as 'Flow'
- - Use the /combined-metadata endpoint instead (For list of sites with daily data) and filter on data_type. You'll get one row per data collection rather than one row per site
- - keep querys below MAX size..
- - document -Djava.net.useSystemProxies=true
- - USGS to do: /ogcapi/v0/collections/peaks and /stac/v0/collections/ratings
-
-Station Name=HYDER AK
-Stream Name=SALMON R
-Station ID=15008000
-Version Name=USGS
-Latitude=56.0259971857126
-Longitude=-130.06687006967235
-Elevation=286
-Coord Datum=NAD27
-PARAMETERS=ALL
-PARAMETERS=Flow,Stage  (new feature)
-
- - put Site-types in config somewhere:
- - Internally use MonitoringLocation instead of legacy UsgsStation
- - get period of record from api (start with Daily)
- - get more site types.
- - when reading regular time series , check dates for ordering ()
-
-gs-w_waterdata_support@usgs.gov
-
-
-Reference and Examples
-
-
-
-USGS 13037500 SNAKE RIVER NR HEISE ID
-
-Parameter types
-00060  Discharge cfs 1Day
-00065  Gage Height ft
-
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/parameter-codes/items
-
-
-monitoring locations
-
-curl -X 'GET' \
-  'https://api.waterdata.usgs.gov/ogcapi/v0/collections/monitoring-locations/items?f=csv&lang=en-US&limit=10000&skipGeometry=true&offset=0&agency_code=USGS&state_code=06&site_type_code=ST' \
-  -H 'accept: application/geo+json'
-
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/site-types/items
-Streams ST:
-Canal: ST-Canal
-Tidal Stream: ST-TS
-Lake, Reservoir: LK
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/monitoring-locations/items?f=csv&lang=en-US&limit=10000&skipGeometry=false&offset=0&agency_code=USGS&state_code=06&site_type_code=ST
-
-
-
-Time series metadata
-
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-series-metadata/items?limit=2000&state_name=Utah
-
-
-
-
-daily data
-old: https://waterservices.usgs.gov/nwis/dv?sites=10059500&startDT=2025-02-26&endDT=2026-02-28&format=rdb
-
-
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/daily/items?f=csv&lang=en-US&limit=1000&properties=time,value,unit_of_measure&skipGeometry=true&sortby=time&offset=0&monitoring_location_id=USGS-11463500&parameter_code=00060%2C00065&statistic_id=00003&time=2018-02-12T00%3A00%3A00Z%2F2018-03-18T12%3A31%3A12Z
-
-
-
- https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-series-metadata/items?f=csv&lang=en-US&limit=10&skipGeometry=false&offset=0&monitoring_location_id=USGS-13037500
-
-
-
-15 Minute data...
-
-/collections/continuous/items
-
-
-
-States
-
-https://api.waterdata.usgs.gov/ogcapi/v0/collections/states/items?f=csv&lang=en-US&limit=10000&skipGeometry=false&offset=0
-
-
-
-curl -X 'GET' \
-  'https://api.waterdata.usgs.gov/ogcapi/v0/collections/time-series-metadata/items?f=csv&lang=en-US&limit=10&skipGeometry=true&offset=0&parameter_code=00060%2C00065&statistic_id=00030&state_name=Idaho' \
-  -H 'accept: application/geo+json'
+ - /ratings
