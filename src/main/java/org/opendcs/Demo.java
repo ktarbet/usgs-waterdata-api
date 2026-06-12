@@ -7,6 +7,10 @@ import java.time.temporal.ChronoUnit;
 public class Demo {
 
     public static void main(String[] args) throws Exception {
+        // Optionally set your USGS API key (otherwise the USGS_WATER_API_KEY
+        // environment variable is used). This takes priority over the env var.
+        UsgsWaterDataApi.setApiKey("your-api-key-here");
+
         // read metadata for a location
         String location_id = "USGS-13213000";
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
@@ -78,6 +82,12 @@ public class Demo {
         peakFlow.printToConsole(5);
         System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
         peakStage.printToConsole(5);
+
+        // Some peaks carry qualifiers (e.g. BACKWATER, ESTIMATED, GHNOTASSCPKQ) needed to interpret the value
+        System.out.println("Peak stage values that carry qualifiers:");
+        peakStage.values.stream()
+                .filter(v -> !v.qualifiers.isEmpty())
+                .forEach(v -> System.out.println("  " + v));
 
         // Read the stage-discharge rating curve (raw RDB text)
         System.out.println("\nRead Rating Curve, Snake River near Moran, WY");

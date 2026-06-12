@@ -11,6 +11,10 @@ implementation("org.opendcs:usgs-waterdata-api:0.3.*")
 
 ```java
 // import org.opendcs.usgs.waterdata.*;
+        // Optionally set your USGS API key (otherwise the USGS_WATER_API_KEY
+        // environment variable is used). This takes priority over the env var.
+        UsgsWaterDataApi.setApiKey("your-api-key-here");
+
         // read metadata for a location
         String location_id = "USGS-13213000";
         var metadata = UsgsWaterDataApi.getTimeSeriesMetadata(location_id);
@@ -83,6 +87,12 @@ implementation("org.opendcs:usgs-waterdata-api:0.3.*")
         System.out.println("Peak " + peakStage.getParameterName() + " (" + peakStage.getUnitOfMeasure() + "):");
         peakStage.printToConsole(5);
 
+        // Some peaks carry qualifiers (e.g. BACKWATER, ESTIMATED, GHNOTASSCPKQ) needed to interpret the value
+        System.out.println("Peak stage values that carry qualifiers:");
+        peakStage.values.stream()
+                .filter(v -> !v.qualifiers.isEmpty())
+                .forEach(v -> System.out.println("  " + v));
+
         // Read the stage-discharge rating curve (raw RDB text)
         System.out.println("\nRead Rating Curve, Snake River near Moran, WY");
         String ratings = UsgsWaterDataApi.getRatings("USGS-13011000");
@@ -147,6 +157,11 @@ Peak Gage height (ft):
   1947-05-09T00:00:00Z = 6.75
   1948-05-29T00:00:00Z = 6.87
   1949-05-17T00:00:00Z = 6.15
+Peak stage values that carry qualifiers:
+  1957-05-19T00:00:00Z = 6.93 [BACKWATER, GHNOTASSCPKQ]
+  1957-06-06T00:00:00Z = 6.9 [NOTMAXGH]
+  2008-05-20T00:00:00Z = 6.22 [NOTMAXGH]
+  2008-05-21T00:00:00Z = 6.39 [GHNOTASSCPKQ]
 
 Read Rating Curve, Snake River near Moran, WY
 # //UNITED STATES GEOLOGICAL SURVEY       http://water.usgs.gov/
@@ -178,6 +193,12 @@ Set the `USGS_WATER_API_KEY` environment variable to increase rate limits. Witho
 
 ```bash
 export USGS_WATER_API_KEY=your-key-here
+```
+
+Alternatively, set it from Java (this takes priority over the environment variable):
+
+```java
+UsgsWaterDataApi.setApiKey("your-api-key-here");
 ```
 
 ```bash
