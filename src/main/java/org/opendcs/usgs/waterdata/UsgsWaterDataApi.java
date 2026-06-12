@@ -42,7 +42,7 @@ public class UsgsWaterDataApi {
     static final String TIME_SERIES_QUERY_ID          = "items?f=csv&lang=en-US&limit=50000&properties=time,value&skipGeometry=true&sortby=time&offset=0&time_series_id=%s&time=%s/%s";
     static final String DAILY_URL_ID                  = ROOT_URL + "daily/" + TIME_SERIES_QUERY_ID;
     static final String CONTINUOUS_URL_ID             = ROOT_URL + "continuous/" + TIME_SERIES_QUERY_ID;
-    static final String PEAKS_QUERY                    = "peaks/items?f=csv&lang=en-US&limit=50000&properties=value,time,time_of_day&skipGeometry=true&sortby=time&offset=0&time_series_id=%s";
+    static final String PEAKS_QUERY                    = "peaks/items?f=csv&lang=en-US&limit=50000&properties=value,time,time_of_day,qualifier&skipGeometry=true&sortby=time&offset=0&time_series_id=%s";
     static final String PEAKS_URL                      = ROOT_URL + PEAKS_QUERY;
     static final String PEAKS_URL_RANGE               = ROOT_URL + PEAKS_QUERY + "&time=%s/%s";
     static final String TIME_SERIES_METADATA_PROPERTIES = "id,unit_of_measure,parameter_name,parameter_code,statistic_id,hydrologic_unit_code,state_name,last_modified,begin,end,begin_utc,end_utc,computation_period_identifier,computation_identifier,thresholds,sublocation_identifier,primary,monitoring_location_id,web_description,parameter_description,parent_time_series_id";
