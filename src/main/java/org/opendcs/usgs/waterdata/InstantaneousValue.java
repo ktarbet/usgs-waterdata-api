@@ -90,7 +90,7 @@ public class InstantaneousValue {
 
     @Override
     public String toString() {
-        return time + " = " + value;
+        return time + " = " + value + (qualifiers.isEmpty() ? "" : " " + qualifiers);
     }
 
     public InstantaneousValue() {
