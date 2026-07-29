@@ -187,6 +187,38 @@ Read Rating Curve, Snake River near Moran, WY
 ```
 
 
+## Site Types
+
+`SiteTypes` lets an application offer a choice of site type instead of hardcoding a code such as
+`"ST"`. Only the `id` and `site_type_name` columns are kept.
+
+The 56 site types are read from a bundled copy of the collection, so building a picker costs no
+network request and throws nothing — this vocabulary is effectively static.
+
+```java
+// Populate a picker: getNames() and getIds() are parallel arrays sorted by name.
+String[] names = SiteTypes.getNames();   // "Aggregate groundwater use", "Aggregate surface-water-use", ... "Stream", ...
+String[] ids   = SiteTypes.getIds();     // "AG",                        "AS",                          ... "ST",     ...
+
+String siteTypeCode = ids[selectedIndex];
+var locations = UsgsWaterDataApi.getLocations(StateLookup.getStateCode("ID"), siteTypeCode);
+
+// Or use the code directly; SiteTypes.STREAM is "ST".
+SiteTypes.getName(SiteTypes.STREAM);     // "Stream"
+
+// Full list, sorted by name.
+for (SiteTypes.SiteType t : SiteTypes.getSiteTypes()) {
+    System.out.println(t);               // "Stream (ST)"
+}
+```
+
+The bundled copy lives at `src/main/resources/site-types.csv`. To regenerate it, keep the `id` and
+`site_type_name` columns from:
+
+```
+https://api.waterdata.usgs.gov/ogcapi/v0/collections/site-types/items?f=csv&limit=1000
+```
+
 ## API Key
 
 Set the `USGS_WATER_API_KEY` environment variable to increase rate limits. Without a key, requests are subject to lower anonymous throttling.

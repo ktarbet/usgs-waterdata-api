@@ -9,6 +9,7 @@ public final class Parameter {
     public static final String WIND_DIRECTION = "00036";
     public static final String PRECIPITATION = "00045";
     public static final String RELATIVE_HUMIDITY = "00052";
+    public static final String RESERVOIR_STORAGE_AC_FT = "00054";
     public static final String DISCHARGE = "00060";
     public static final String STAGE = "00065";
     public static final String SPECIFIC_CONDUCTANCE = "00095";
@@ -20,9 +21,9 @@ public final class Parameter {
     public static List<String> all() {
         return List.of(
                 WATER_TEMPERATURE, AIR_TEMPERATURE, WIND_SPEED, WIND_DIRECTION,
-                PRECIPITATION, RELATIVE_HUMIDITY, DISCHARGE, STAGE,
-                SPECIFIC_CONDUCTANCE, SALINITY, RESERVOIR_STORAGE,
-                SOLAR_RADIATION, ELEVATION_NAVD88);
+                PRECIPITATION, RELATIVE_HUMIDITY, RESERVOIR_STORAGE_AC_FT,
+                DISCHARGE, STAGE, SPECIFIC_CONDUCTANCE, SALINITY,
+                RESERVOIR_STORAGE, SOLAR_RADIATION, ELEVATION_NAVD88);
     }
 
     private Parameter() {
