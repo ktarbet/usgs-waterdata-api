@@ -30,10 +30,15 @@ public class MonitoringLocation {
     public String siteType;
     public String hydrologicUnitCode;
     public String basinCode;
+    /**
+     * Altitude of the gage or land surface, which is not the gage datum, so stage
+     * (Parameter.STAGE) cannot be converted to water-surface elevation by adding it.
+     */
     public String altitude;
     public String altitudeAccuracy;
     public String altitudeMethodCode;
     public String altitudeMethodName;
+    /** The vertical datum that altitude is referenced to, such as NAVD88. */
     public String verticalDatum;
     public String verticalDatumName;
     public String horizontalPositionalAccuracyCode;
